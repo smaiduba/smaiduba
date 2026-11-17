@@ -1,0 +1,538 @@
+<script setup>
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { supabase } from '../lib/supabase'
+import { userSesi } from '../stores/auth'
+import Chart from 'chart.js/auto'
+import { theme } from '../stores/theme'
+import { watch } from 'vue'
+
+// Re-render chart saat theme berubah
+watch(theme, async () => {
+  await nextTick()
+  // Hanya re-render chart, tidak re-fetch data
+  if (chartStatus) chartStatus.destroy()
+  if (chartMasuk) chartMasuk.destroy()
+  if (chartKelas) chartKelas.destroy()
+  hitungDashboard() // renderChartStatus/Masuk/Kelas dipanggil di dalamnya
+})
+import { 
+  CalendarDays, GraduationCap, ShieldCheck, Users, UserCheck, Award, 
+  Briefcase, School, TrendingUp, PieChart, ClipboardCheck, BarChart3, ChevronRight, Search, Plus, Printer, RefreshCw
+} from 'lucide-vue-next'
+
+// State Data
+const daftarSiswa = ref([])
+const daftarGuru = ref([])
+const daftarNilai = ref([])
+const isLoading = ref(true)
+
+// State KPI
+const kpi = ref({
+  total: 0, aktif: 0, lulus: 0, guru: 0, rombel: 0, rataNilai: '-',
+  totalSub: '-', aktifSub: '-', lulusSub: '-', guruSub: '-', rombelSub: '-', nilaiSub: '-',
+  putra: 0, putri: 0, persenLengkap: 0, lengkapCount: 0, tanpaKelas: 0, tglTakTerbaca: 0
+})
+
+// State Waktu
+const waktuSekarang = ref('')
+const sapaan = ref('')
+const roleUser = ref('')
+
+// State Chart
+let chartStatus = null
+let chartMasuk = null
+let chartKelas = null
+const chartStatusCanvas = ref(null)
+const chartMasukCanvas = ref(null)
+const chartKelasCanvas = ref(null)
+
+const hitungDashboard = () => {
+  // 1. Hitung KPI
+  const total = daftarSiswa.value.length
+  let aktif = 0, lulus = 0, putra = 0, putri = 0, tanpaKelas = 0, lengkap = 0
+  const angkatan = {}, perKelas = {}
+  
+  daftarSiswa.value.forEach(s => {
+    const st = (s.status || '').toLowerCase()
+    const kl = (s.kelas || '').toLowerCase()
+    const gab = st + ' ' + kl
+    const isLulus = /lulus/.test(gab) && !/(belum|tidak)\s*lulus/.test(gab)
+    const isBerhenti = !isLulus && /berhenti/.test(gab)
+    
+    if (s.masuk) {
+      const m = String(s.masuk).match(/\d{4}/)
+      if (m) angkatan[m[0]] = true
+    }
+    
+    if (isLulus) {
+      lulus++
+    } else if (!isBerhenti) {
+      aktif++
+      const jk = (s.kelamin || '').toLowerCase().charAt(0)
+      if (jk === 'l') putra++
+      else if (jk === 'p') putri++
+      
+      if (!s.kelas) tanpaKelas++
+      else perKelas[s.kelas] = (perKelas[s.kelas] || 0) + 1
+    }
+    
+    // Anggap lengkap jika NIK dan Nama Ayah terisi
+    if (s.nik && s.ayah) lengkap++
+  })
+
+  const jumlahKelas = Object.keys(perKelas)
+  let kelasTerbesar = '', terbesarN = 0
+  jumlahKelas.forEach(k => { if (perKelas[k] > terbesarN) { terbesarN = perKelas[k]; kelasTerbesar = k } })
+
+  // Hitung rata-rata nilai ijazah dari state nilai (dummy)
+  let sumNilai = 0, countNilai = 0
+  daftarNilai.value.forEach(n => {
+    if (n.nilai_data && n.nilai_data.smt1 && n.nilai_data.smt1.mapel) {
+      n.nilai_data.smt1.mapel.forEach(m => {
+        const t = parseFloat(m.teori)
+        if (!isNaN(t)) { sumNilai += t; countNilai++ }
+      })
+    }
+  })
+
+  kpi.value = {
+    total: total,
+    aktif: aktif,
+    lulus: lulus,
+    guru: daftarGuru.value.length,
+    rombel: jumlahKelas.length,
+    rataNilai: countNilai > 0 ? (sumNilai / countNilai).toFixed(2) : '-',
+    totalSub: Object.keys(angkatan).length + ' angkatan tercatat',
+    aktifSub: putra + ' putra • ' + putri + ' putri',
+    lulusSub: (total ? Math.round(lulus * 100 / total) : 0) + '% dari seluruh data',
+    guruSub: 'Guru & Staf',
+    rombelSub: kelasTerbesar ? 'Terbesar: ' + kelasTerbesar + ' (' + terbesarN + ')' : 'Belum ada',
+    nilaiSub: countNilai + ' santri bernilai',
+    putra, putri,
+    lengkapCount: lengkap,
+    persenLengkap: total ? Math.round(lengkap * 100 / total) : 0,
+    tanpaKelas,
+    tglTakTerbaca: 0
+  }
+
+  // 2. Render Charts
+  renderChartStatus()
+  renderChartMasuk(angkatan)
+  renderChartKelas(perKelas)
+}
+
+const renderChartStatus = () => {
+  if (!chartStatusCanvas.value) return
+  let aktif = 0, lulus = 0, berhenti = 0
+  daftarSiswa.value.forEach(s => {
+    const gab = (s.status || '').toLowerCase() + ' ' + (s.kelas || '').toLowerCase()
+    if (/lulus/.test(gab) && !/(belum|tidak)\s*lulus/.test(gab)) lulus++
+    else if (/berhenti/.test(gab)) berhenti++
+    else aktif++
+  })
+
+  if (chartStatus) chartStatus.destroy()
+  chartStatus = new Chart(chartStatusCanvas.value, {
+    type: 'doughnut',
+    data: {
+      labels: ['Aktif', 'Lulus', 'Berhenti'],
+      datasets: [{
+        data: [aktif, lulus, berhenti],
+        backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+        hoverBackgroundColor: ['#6ee7b7', '#93c5fd', '#fca5a5'],
+        borderColor: '#0f172a', borderWidth: 3, hoverOffset: 14
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true, aspectRatio: 1, cutout: '75%',
+      plugins: { legend: { display: false } }
+    }
+  })
+}
+
+const renderChartMasuk = (angkatanObj) => {
+  if (!chartMasukCanvas.value) return
+  const tahunArr = Object.keys(angkatanObj).sort((a,b) => b - a).slice(0, 3).reverse()
+  const labels = tahunArr.map(t => 'Angkatan ' + t)
+  const values = tahunArr.map(t => daftarSiswa.value.filter(s => String(s.masuk).includes(t)).length)
+
+  if (chartMasuk) chartMasuk.destroy()
+  chartMasuk = new Chart(chartMasukCanvas.value, {
+    type: 'doughnut',
+    data: {
+      labels: labels.length ? labels : ['Belum Ada'],
+      datasets: [{
+        data: values.length ? values : [1],
+        backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6'],
+        hoverBackgroundColor: ['#fcd34d', '#93c5fd', '#c4b5fd'],
+        borderColor: '#0f172a', borderWidth: 3, hoverOffset: 14
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true, aspectRatio: 1, cutout: '75%',
+      plugins: { legend: { display: false } }
+    }
+  })
+}
+
+const renderChartKelas = (perKelasObj) => {
+  if (!chartKelasCanvas.value) return
+  const kelasArr = Object.keys(perKelasObj).sort()
+  const values = kelasArr.map(k => perKelasObj[k])
+
+  if (chartKelas) chartKelas.destroy()
+  chartKelas = new Chart(chartKelasCanvas.value, {
+    type: 'bar',
+    data: {
+      labels: kelasArr,
+      datasets: [{
+        label: 'Jumlah Siswa',
+        data: values,
+        backgroundColor: '#10b981',
+        hoverBackgroundColor: '#047857',
+        borderRadius: 8, barThickness: 20
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { beginAtZero: true, grid: { color: 'rgba(51, 65, 85, 0.4)' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { display: false }, ticks: { color: '#f1f5f9', font: { weight: 'bold' } } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  })
+}
+
+const muatData = async () => {
+  isLoading.value = true
+  
+  // Set Waktu & Sapaan
+  const now = new Date()
+  const jam = now.getHours()
+  sapaan.value = jam < 11 ? 'Selamat pagi' : (jam < 15 ? 'Selamat siang' : (jam < 18 ? 'Selamat sore' : 'Selamat malam'))
+  waktuSekarang.value = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  roleUser.value = (userSesi.value?.email || 'Admin').toUpperCase()
+
+  // Fetch Data from Supabase
+  const [resSiswa, resGuru, resNilai] = await Promise.all([
+    supabase.from('siswa').select('*'),
+    supabase.from('guru').select('*'),
+    supabase.from('nilai').select('*')
+  ])
+
+  if (resSiswa.data) daftarSiswa.value = resSiswa.data
+  if (resGuru.data) daftarGuru.value = resGuru.data
+  if (resNilai.data) daftarNilai.value = resNilai.data
+
+  isLoading.value = false
+  
+  // Tunggu DOM selesai render, lalu buat Chart
+  await nextTick()
+  hitungDashboard()
+}
+
+onMounted(() => {
+  muatData()
+})
+
+onBeforeUnmount(() => {
+  if (chartStatus) chartStatus.destroy()
+  if (chartMasuk) chartMasuk.destroy()
+  if (chartKelas) chartKelas.destroy()
+})
+</script>
+
+<template>
+  <div class="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+    
+    <!-- HERO SECTION -->
+    <div class="dsh-hero dsh-in">
+      <div class="dsh-hero-bg" aria-hidden="true"></div>
+      <div class="dsh-hero-grid">
+        <div>
+          <div class="dsh-chips">
+            <span class="dsh-chip"><CalendarDays class="w-3.5 h-3.5" /><span>{{ waktuSekarang }}</span></span>
+            <span class="dsh-chip"><GraduationCap class="w-3.5 h-3.5" /><span>TP 2025/2026 • Ganjil</span></span>
+            <span class="dsh-chip"><ShieldCheck class="w-3.5 h-3.5" /><span>{{ roleUser }}</span></span>
+          </div>
+          <h2 class="dsh-hero-title">{{ sapaan }}, {{ userSesi?.email || 'Administrator' }}</h2>
+          <p class="dsh-hero-sub">Data akademik SMA Al-Itsbatiyah Darul Ulum Banyuanyar — siswa/santri, nilai, dan kelengkapan data lainnya.</p>
+          <div class="dsh-hero-actions">
+            <button type="button" class="dsh-btn dsh-btn-light" @click="$router.push('/siswa?spmb=true')"><Plus class="w-4 h-4" /><span>SPMB</span></button>
+            <button type="button" class="dsh-btn dsh-btn-glass"><Printer class="w-4 h-4" /><span>Pusat Cetak</span></button>
+            <button type="button" class="dsh-btn dsh-btn-glass" @click="muatData"><RefreshCw class="w-4 h-4" /><span>Sinkron Data</span></button>
+          </div>
+        </div>
+        <div class="dsh-status">
+          <div class="dsh-status-label">Status Sistem</div>
+          <div class="dsh-status-row"><span class="dsh-dot"></span><span>Terhubung ke Supabase</span></div>
+          <div class="dsh-status-sub">Sinkronisasi otomatis</div>
+          <button type="button" class="dsh-search"><Search class="w-4 h-4" /><span>Cari menu atau santri…</span><kbd>Ctrl K</kbd></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="dsh-kpis">
+      <div class="dsh-kpi dsh-in" style="--accent:16,185,129;--accent-d:4,120,87;--accent-l:110,231,183;--d:60ms">
+        <div class="dsh-kpi-top"><span class="dsh-kpi-label">Total Santri</span><span class="dsh-ic"><Users class="w-5 h-5" /></span></div>
+        <div class="dsh-kpi-val">{{ isLoading ? '...' : kpi.total }}</div>
+        <div class="dsh-kpi-sub">{{ kpi.totalSub }}</div>
+      </div>
+      <div class="dsh-kpi dsh-in" style="--accent:59,130,246;--accent-d:29,78,216;--accent-l:147,197,253;--d:110ms">
+        <div class="dsh-kpi-top"><span class="dsh-kpi-label">Santri Aktif</span><span class="dsh-ic"><UserCheck class="w-5 h-5" /></span></div>
+        <div class="dsh-kpi-val">{{ isLoading ? '...' : kpi.aktif }}</div>
+        <div class="dsh-kpi-sub">{{ kpi.aktifSub }}</div>
+        <div class="dsh-split"><span :style="{ width: (kpi.putra / (kpi.putra + kpi.putri || 1) * 100) + '%' }"></span><span :style="{ width: (kpi.putri / (kpi.putra + kpi.putri || 1) * 100) + '%' }"></span></div>
+      </div>
+      <div class="dsh-kpi dsh-in" style="--accent:139,92,246;--accent-d:109,40,217;--accent-l:196,181,253;--d:160ms">
+        <div class="dsh-kpi-top"><span class="dsh-kpi-label">Alumni (Lulus)</span><span class="dsh-ic"><Award class="w-5 h-5" /></span></div>
+        <div class="dsh-kpi-val">{{ isLoading ? '...' : kpi.lulus }}</div>
+        <div class="dsh-kpi-sub">{{ kpi.lulusSub }}</div>
+      </div>
+      <div class="dsh-kpi dsh-in" style="--accent:20,184,166;--accent-d:15,118,110;--accent-l:94,234,212;--d:210ms">
+        <div class="dsh-kpi-top"><span class="dsh-kpi-label">Dewan Guru</span><span class="dsh-ic"><Briefcase class="w-5 h-5" /></span></div>
+        <div class="dsh-kpi-val">{{ isLoading ? '...' : kpi.guru }}</div>
+        <div class="dsh-kpi-sub">{{ kpi.guruSub }}</div>
+      </div>
+      <div class="dsh-kpi dsh-in" style="--accent:245,158,11;--accent-d:180,83,9;--accent-l:252,211,77;--d:260ms">
+        <div class="dsh-kpi-top"><span class="dsh-kpi-label">Rombel Aktif</span><span class="dsh-ic"><School class="w-5 h-5" /></span></div>
+        <div class="dsh-kpi-val">{{ isLoading ? '...' : kpi.rombel }}</div>
+        <div class="dsh-kpi-sub">{{ kpi.rombelSub }}</div>
+      </div>
+      <div class="dsh-kpi dsh-in" style="--accent:244,63,94;--accent-d:190,18,60;--accent-l:253,164,175;--d:310ms">
+        <div class="dsh-kpi-top"><span class="dsh-kpi-label">Rata-rata Nilai</span><span class="dsh-ic"><TrendingUp class="w-5 h-5" /></span></div>
+        <div class="dsh-kpi-val">{{ isLoading ? '...' : kpi.rataNilai }}</div>
+        <div class="dsh-kpi-sub">{{ kpi.nilaiSub }}</div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 1 -->
+    <div class="dsh-grid">
+      <!-- Status Santri -->
+      <div class="dsh-card dsh-span-4 dsh-in" style="--accent:59,130,246;--accent-d:29,78,216;--accent-l:147,197,253;--d:120ms">
+        <div class="dsh-card-head">
+          <div class="dsh-card-head-l"><span class="dsh-ic"><PieChart class="w-5 h-5" /></span><div><div class="dsh-card-title">Status Santri</div><div class="dsh-card-sub">Keseluruhan database</div></div></div>
+          <span class="dsh-pill">Total <span>{{ kpi.total }}</span></span>
+        </div>
+        <div class="dsh-donut">
+          <div class="dsh-donut-canvas">
+            <canvas ref="chartStatusCanvas"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">TOTAL</div>
+              <div class="text-3xl font-bold text-white font-mono-code leading-none">{{ kpi.total }}</div>
+              <div class="text-[10px] text-blue-400 font-semibold mt-1">SANTRI</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Santri Masuk -->
+      <div class="dsh-card dsh-span-4 dsh-in" style="--accent:16,185,129;--accent-d:4,120,87;--accent-l:110,231,183;--d:180ms">
+        <div class="dsh-card-head">
+          <div class="dsh-card-head-l"><span class="dsh-ic"><TrendingUp class="w-5 h-5" /></span><div><div class="dsh-card-title">Santri Masuk</div><div class="dsh-card-sub">3 angkatan terakhir</div></div></div>
+        </div>
+        <div class="dsh-donut">
+          <div class="dsh-donut-canvas">
+            <canvas ref="chartMasukCanvas"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">TOTAL</div>
+              <div class="text-3xl font-bold text-white font-mono-code leading-none">{{ kpi.total }}</div>
+              <div class="text-[10px] text-emerald-400 font-semibold mt-1">SANTRI</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kelengkapan Data -->
+      <div class="dsh-card dsh-span-4 dsh-md-full dsh-in" style="--accent:20,184,166;--accent-d:15,118,110;--accent-l:94,234,212;--d:240ms">
+        <div class="dsh-card-head">
+          <div class="dsh-card-head-l"><span class="dsh-ic"><ClipboardCheck class="w-5 h-5" /></span><div><div class="dsh-card-title">Kelengkapan Data</div><div class="dsh-card-sub">Kualitas database santri</div></div></div>
+        </div>
+        
+        <div class="dsh-ring-wrap">
+          <svg class="dsh-ring" viewBox="0 0 120 120">
+            <defs><linearGradient id="dshRingGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#14b8a6"/></linearGradient></defs>
+            <circle class="dsh-ring-bg" cx="60" cy="60" r="52"></circle>
+            <circle class="dsh-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.73" :stroke-dashoffset="326.73 * (1 - kpi.persenLengkap / 100)" transform="rotate(-90 60 60)"></circle>
+          </svg>
+          <div class="dsh-ring-center">
+            <div class="dsh-ring-pct">{{ kpi.persenLengkap }}%</div>
+            <div class="dsh-ring-cap">lengkap</div>
+          </div>
+        </div>
+        <div class="dsh-ring-sub">{{ kpi.lengkapCount }} dari {{ kpi.total }} data ditandai lengkap</div>
+        
+        <div class="dsh-att-title">Perlu perhatian</div>
+        <div class="dsh-att-list">
+          <button type="button" class="dsh-att">
+            <span class="dsh-att-dot warn"></span><span><b>{{ kpi.tanpaKelas }}</b> santri aktif belum punya kelas</span><ChevronRight class="w-4 h-4" />
+          </button>
+          <button type="button" class="dsh-att">
+            <span class="dsh-att-dot bad"></span><span><b>{{ kpi.total - kpi.lengkapCount }}</b> data belum ditandai lengkap</span><ChevronRight class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="dsh-grid">
+      <div class="dsh-card dsh-in" style="--accent:245,158,11;--accent-d:180,83,9;--accent-l:252,211,77;--d:140ms;grid-column:1 / -1">
+        <div class="dsh-card-head">
+          <div class="dsh-card-head-l"><span class="dsh-ic"><BarChart3 class="w-5 h-5" /></span><div><div class="dsh-card-title">Santri per Kelas</div><div class="dsh-card-sub">Distribusi seluruh santri aktif</div></div></div>
+          <span class="dsh-pill"><span>{{ kpi.rombel }}</span> Kelas • <span>{{ kpi.aktif }}</span> Santri</span>
+        </div>
+        <div style="position: relative; width: 100%; height: 280px;">
+          <canvas ref="chartKelasCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</template>
+
+<style scoped>
+/* ============================================================
+   DASHBOARD BENTO STYLES (1:1 DARI GAS)
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.font-heading { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+.font-mono-code { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+/* Animations */
+@keyframes dshIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dshPulse { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.65); } 70% { box-shadow: 0 0 0 9px rgba(52,211,153,0); } 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); } }
+.dsh-in { animation: dshIn 620ms cubic-bezier(0.16,1,0.3,1) backwards; animation-delay: var(--d, 0ms); }
+
+/* HERO */
+.dsh-hero {
+  position: relative; overflow: hidden; border-radius: 26px; padding: 28px 30px; color: #fff;
+  background: linear-gradient(135deg, #047857 0%, #0f766e 48%, #115e59 100%);
+  box-shadow: 0 18px 40px -18px rgba(4,120,87,.55), 0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.dsh-hero-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(520px 260px at 88% -10%, rgba(255,255,255,.22), transparent 60%), radial-gradient(420px 220px at 0% 110%, rgba(110,231,183,.28), transparent 60%), radial-gradient(circle, rgba(255,255,255,.10) 1px, transparent 1px);
+  background-size: auto, auto, 26px 26px;
+}
+.dsh-hero-grid { position: relative; display: grid; gap: 24px; align-items: center; grid-template-columns: minmax(0,1fr) 300px; }
+@media (max-width: 900px) { .dsh-hero-grid { grid-template-columns: minmax(0,1fr); } .dsh-hero { padding: 22px 20px; } }
+
+.dsh-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.dsh-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; color: #fff; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2);
+  backdrop-filter: blur(6px);
+}
+.dsh-hero-title { margin: 16px 0 6px; font-size: clamp(22px, 3vw, 32px); font-weight: 800; letter-spacing: -.03em; line-height: 1.15; color: #fff; }
+.dsh-hero-sub { margin: 0; max-width: 520px; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,.82); }
+.dsh-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+
+.dsh-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px;
+  font-size: 12.5px; font-weight: 700; line-height: 1; cursor: pointer; border: 1px solid transparent;
+  transition: transform 200ms, background-color 200ms, box-shadow 200ms;
+}
+.dsh-btn-light { background: #fff; color: #065f46; box-shadow: 0 6px 16px -6px rgba(0,0,0,.35); }
+.dsh-btn-glass { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.25); backdrop-filter: blur(6px); }
+.dsh-btn-glass:hover { background: rgba(255,255,255,.24); }
+
+.dsh-status {
+  border-radius: 18px; padding: 16px; color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); backdrop-filter: blur(10px);
+}
+.dsh-status-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.7); }
+.dsh-status-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13.5px; font-weight: 700; }
+.dsh-dot { width: 9px; height: 9px; border-radius: 50%; background: #34d399; flex-shrink: 0; animation: dshPulse 2s infinite; }
+.dsh-status-sub { margin-top: 4px; font-size: 11.5px; color: rgba(255,255,255,.75); }
+.dsh-search {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 14px; padding: 10px 12px; border-radius: 12px;
+  cursor: pointer; font-size: 12px; text-align: left; color: rgba(255,255,255,.88); background: rgba(2,6,23,.28); border: 1px solid rgba(255,255,255,.18);
+}
+.dsh-search kbd { padding: 2px 7px; border-radius: 6px; font-size: 10px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.22); }
+
+/* KPI CARDS */
+.dsh-kpis { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0,1fr)); }
+@media (min-width: 1100px) { .dsh-kpis { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (min-width: 1500px) { .dsh-kpis { grid-template-columns: repeat(6, minmax(0,1fr)); } }
+@media (max-width: 479px)  { .dsh-kpis { grid-template-columns: minmax(0,1fr); } }
+
+.dsh-kpi {
+  position: relative; overflow: hidden; min-width: 0; cursor: pointer; padding: 18px 18px 16px; border-radius: 20px;
+  background: var(--bg-surface, #111827); border: 1px solid var(--border-subtle, #1e293b); box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.4));
+  transition: transform 300ms, box-shadow 300ms, border-color 300ms;
+}
+.dsh-kpi::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, rgb(var(--accent)), rgba(var(--accent),.15)); }
+.dsh-kpi::after { content: ''; position: absolute; right: -34px; top: -34px; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, rgba(var(--accent),.2), transparent 70%); pointer-events: none; }
+.dsh-kpi:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,.5); border-color: rgba(var(--accent),.5); }
+.dsh-kpi-top { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dsh-kpi-label { font-size: 11.5px; font-weight: 700; color: #94a3b8; }
+.dsh-ic { width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(var(--accent),.18); color: rgb(var(--accent-l, var(--accent))); }
+.dsh-kpi-val { position: relative; z-index: 1; margin-top: 14px; font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -.035em; color: #f8fafc; font-variant-numeric: tabular-nums; }
+.dsh-kpi-sub { position: relative; z-index: 1; margin-top: 6px; font-size: 11.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsh-split { position: relative; z-index: 1; display: flex; height: 6px; margin-top: 10px; border-radius: 999px; overflow: hidden; background: #1e293b; }
+.dsh-split span { display: block; height: 100%; transition: width 900ms cubic-bezier(0.16,1,0.3,1); }
+.dsh-split span:first-child { background: #3b82f6; }
+.dsh-split span:last-child  { background: #ec4899; }
+
+/* GRID & CARD */
+.dsh-grid { display: grid; gap: 20px; grid-template-columns: repeat(12, minmax(0,1fr)); }
+.dsh-span-4 { grid-column: span 4; }
+@media (max-width: 1279px) { .dsh-span-4 { grid-column: span 6; } .dsh-md-full { grid-column: span 12; } }
+@media (max-width: 767px)  { .dsh-span-4 { grid-column: span 12; } }
+
+.dsh-card {
+  position: relative; min-width: 0; overflow: hidden; padding: 22px; background: #111827; border: 1px solid #1e293b;
+  border-radius: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: border-color 300ms, box-shadow 300ms;
+}
+.dsh-card:hover { border-color: rgba(var(--accent),.4); box-shadow: 0 4px 6px rgba(0,0,0,.4); }
+.dsh-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #1e293b; }
+.dsh-card-head-l { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dsh-card-title { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; color: #f8fafc; }
+.dsh-card-sub   { margin-top: 2px; font-size: 11.5px; color: #64748b; }
+.dsh-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: rgb(var(--accent-l, var(--accent))); background: rgba(var(--accent),.12); border: 1px solid rgba(var(--accent),.28); }
+@media (max-width: 520px) { .dsh-pill { display: none; } }
+
+.dsh-donut { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.dsh-donut-canvas { position: relative; width: 100%; max-width: 240px; aspect-ratio: 1 / 1; }
+
+/* RING & ATT */
+.dsh-ring-wrap { position: relative; width: 148px; height: 148px; margin: 0 auto 18px; }
+.dsh-ring { width: 100%; height: 100%; display: block; }
+.dsh-ring-bg { fill: none; stroke: #334155; stroke-width: 10; }
+.dsh-ring-fg { fill: none; stroke: url(#dshRingGrad); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1.1s cubic-bezier(0.16,1,0.3,1); }
+.dsh-ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.dsh-ring-pct { font-size: 28px; font-weight: 800; color: #f8fafc; }
+.dsh-ring-cap { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
+.dsh-ring-sub { margin: -6px 0 16px; text-align: center; font-size: 11.5px; color: #64748b; }
+.dsh-att-title { margin: 0 0 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+.dsh-att-list { display: flex; flex-direction: column; gap: 8px; }
+.dsh-att {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border-radius: 14px; cursor: pointer;
+  text-align: left; font-size: 12.5px; line-height: 1.35; color: #94a3b8; background: #1e293b; border: 1px solid #1e293b; transition: transform 200ms, border-color 200ms;
+}
+.dsh-att:hover { transform: translateX(3px); border-color: rgba(16,185,129,.5); }
+.dsh-att b { font-size: 15px; font-weight: 800; color: #f8fafc; }
+.dsh-att > span:nth-child(2) { flex: 1; min-width: 0; }
+.dsh-att-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.dsh-att-dot.warn { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,.18); }
+.dsh-att-dot.bad  { background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.18); }
+
+/* Polish tambahan */
+.dsh-hero {
+  border-radius: 24px !important;
+  padding: 32px !important;
+}
+.dsh-card {
+  border-radius: 20px !important;
+  padding: 24px !important;
+}
+.dsh-kpi {
+  padding: 20px !important;
+  border-radius: 18px !important;
+}
+.dsh-kpi-val {
+  font-size: 32px !important;
+}
+</style>
