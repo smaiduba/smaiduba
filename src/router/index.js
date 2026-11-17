@@ -32,10 +32,10 @@ const router = createRouter({
     { path: '/pusat-cetak', name: 'pusat-cetak', component: PusatCetakView },
 
     // === PRINT ROUTES ===
-    { path: '/print/raport/:noInduk/:smt', name: 'print-raport', component: RaportPrint, meta: { print: true } },
-    { path: '/print/ijazah/:noInduk', name: 'print-ijazah', component: IjazahPrint, meta: { print: true } },
-    { path: '/print/bukuinduk/:noInduk', name: 'print-bukuinduk', component: BukuIndukPrint, meta: { print: true } },
-    { path: '/print/absensi/:type/:kelas', name: 'print-absensi', component: AbsensiPrint, meta: { print: true } },
+    { path: '/print/raport/:noInduk/:smt', name: 'print-raport', component: RaportPrint },
+    { path: '/print/ijazah/:noInduk', name: 'print-ijazah', component: IjazahPrint },
+    { path: '/print/bukuinduk/:noInduk', name: 'print-bukuinduk', component: BukuIndukPrint },
+    { path: '/print/absensi/:type/:kelas', name: 'print-absensi', component: AbsensiPrint },
 
     // Placeholder (nanti diisi)
     { path: '/kaldik', name: 'kaldik', component: DashboardView },
