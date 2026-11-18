@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import CustomSelect from '../components/CustomSelect.vue'
 import { FileText, Scroll, Book, Users, Sparkles, BookOpen, Printer, X, Search, ChevronRight } from 'lucide-vue-next'
+import { isSiswaAktif } from '../lib/status'
 
 const router = useRouter()
 
@@ -91,9 +92,6 @@ const proceed = () => {
   else if (type === 'absen-sorogan') router.push(`/print/absensi/sorogan/${encodeURIComponent(selectedKelas.value)}`)
 }
 
-// Sinkron dengan AbsensiView/AbsensiEkstraView: aktif hanya kalau status = 'aktif'
-const isAktif = (s) => String(s.status || '').toLowerCase().trim() === 'aktif'
-
 // Sort kelas: X → XI → XII, sisanya di akhir
 function sortKelas(a, b) {
   const urut = { X: 1, XI: 2, XII: 3 }
@@ -116,17 +114,17 @@ onMounted(async () => {
   if (rSiswa.data) {
     daftarSiswa.value = rSiswa.data
     daftarKelas.value = Array.from(new Set(
-      rSiswa.data.filter(isAktif).map(s => (s.kelas || '').trim()).filter(Boolean)
+      rSiswa.data.filter(s => isSiswaAktif(s)).map(s => (s.kelas || '').trim()).filter(Boolean)
     )).sort(sortKelas)
   }
   if (rNabil.data) {
     daftarKelasNabil.value = Array.from(new Set(
-      rNabil.data.filter(isAktif).map(n => (n.kelompok_nabil || '').trim()).filter(Boolean)
+      rNabil.data.filter(n => isSiswaAktif(n)).map(n => (n.kelompok_nabil || '').trim()).filter(Boolean)
     )).sort((a, b) => a.localeCompare(b))
   }
   if (rSorogan.data) {
     daftarPembimbing.value = Array.from(new Set(
-      rSorogan.data.filter(isAktif).map(s => (s.pembimbing || '').trim()).filter(Boolean)
+      rSorogan.data.filter(s => isSiswaAktif(s)).map(s => (s.pembimbing || '').trim()).filter(Boolean)
     )).sort((a, b) => a.localeCompare(b))
   }
 })
