@@ -13,11 +13,10 @@ import {
   Upload, X, Shield, Zap, Keyboard, HelpCircle
 } from 'lucide-vue-next'
 
-const activeTab = ref('backup')
+const activeTab = ref('info')
 const toast = ref('')
 
 const tabs = [
-  { id: 'backup',  label: 'Backup & Restore',   icon: Database },
   { id: 'info',    label: 'Info & Maintenance', icon: Info },
   { id: 'panduan', label: 'Panduan',            icon: BookOpen }
 ]
@@ -63,48 +62,6 @@ async function discoverTables() {
 }
 
 const totalRecords = computed(() => availableTables.value.reduce((a, b) => a + b.count, 0))
-
-// ═══════════════════════════════════════════
-// BACKUP JSON
-// ═══════════════════════════════════════════
-const backupLoading = ref('')
-
-async function backupJSON() {
-  const ok = await confirm({
-    title: 'Backup Lengkap (JSON)',
-    message: `Snapshot SELURUH data database (${availableTables.value.length} tabel, ${totalRecords.value.toLocaleString('id-ID')} record) + pengaturan aplikasi.\n\nFile JSON bisa di-restore kembali lewat tab ini.\n\nLanjutkan?`,
-    variant: 'info',
-    confirmText: 'Ya, Backup'
-  })
-  if (!ok) return
-  backupLoading.value = 'json'
-  try {
-    const dump = {
-      meta: { generatedAt: new Date().toISOString(), app: 'SIMAK', version: '2.0.0' },
-      pengaturan: JSON.parse(JSON.stringify(pengaturan)),
-      tables: {},
-      errors: []
-    }
-    for (const t of availableTables.value) {
-      const { data, error } = await supabase.from(t.key).select('*')
-      if (error) { dump.errors.push({ table: t.key, message: error.message }); continue }
-      dump.tables[t.key] = data || []
-    }
-    if (Object.keys(dump.tables).length === 0) throw new Error('Semua tabel gagal di-fetch')
-    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `backup-simak-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    showToast(`Backup ${Object.keys(dump.tables).length} tabel berhasil`)
-  } catch (e) {
-    alert('Gagal backup: ' + e.message)
-  } finally {
-    backupLoading.value = ''
-  }
-}
 
 // ═══════════════════════════════════════════
 // EXPORT EXCEL GABUNGAN (10 sheet)
@@ -599,132 +556,6 @@ function buildSheetGuru(XLSX, wb, guruRows, waktu, namaUser) {
 }
 
 // ═══════════════════════════════════════════
-// RESTORE
-// ═══════════════════════════════════════════
-const restoreFile = ref(null)
-const restoreFileName = ref('')
-const restoreMode = ref('config')
-const restoreTableList = ref([])
-const restoreTables = ref([])
-const restoreConfirmText = ref('')
-const restoreLoading = ref(false)
-const restoreProgress = ref([])
-const showRestoreDialog = ref(false)
-
-async function onRestoreFile(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  try {
-    const text = await file.text()
-    const parsed = JSON.parse(text)
-    const tablesObj = parsed.tables || parsed.data
-    if (tablesObj && parsed.pengaturan) {
-      restoreFile.value = { ...parsed, tables: tablesObj }
-      restoreMode.value = 'data'
-      restoreTableList.value = Object.keys(tablesObj).map(k => ({
-        key: k,
-        count: Array.isArray(tablesObj[k]) ? tablesObj[k].length : 0
-      }))
-      restoreTables.value = restoreTableList.value.map(t => t.key)
-    } else if (parsed.pengaturan || (parsed.sekolah && parsed.akademik)) {
-      restoreFile.value = { pengaturan: parsed.pengaturan || parsed, tables: null }
-      restoreMode.value = 'config'
-      restoreTableList.value = []
-      restoreTables.value = []
-    } else {
-      throw new Error('Format tidak dikenali')
-    }
-    restoreFileName.value = file.name
-    restoreConfirmText.value = ''
-    showRestoreDialog.value = true
-  } catch (err) {
-    alert('File tidak valid: ' + err.message)
-  }
-  e.target.value = ''
-}
-
-function closeRestoreDialog() {
-  showRestoreDialog.value = false
-  restoreFile.value = null
-  restoreFileName.value = ''
-  restoreTables.value = []
-  restoreConfirmText.value = ''
-  restoreProgress.value = []
-  restoreLoading.value = false
-}
-
-const canRestore = computed(() => {
-  if (!restoreFile.value) return false
-  if (restoreMode.value === 'config') return true
-  return restoreTables.value.length > 0 && restoreConfirmText.value === 'RESTORE'
-})
-
-function toggleRestoreTable(key) {
-  const i = restoreTables.value.indexOf(key)
-  if (i >= 0) restoreTables.value.splice(i, 1)
-  else restoreTables.value.push(key)
-}
-
-async function executeRestore() {
-  if (!canRestore.value) return
-  restoreLoading.value = true
-  restoreProgress.value = []
-
-  if (restoreFile.value.pengaturan) {
-    try {
-      Object.assign(pengaturan, restoreFile.value.pengaturan)
-      restoreProgress.value.push({ table: 'Pengaturan', status: 'ok', msg: 'Diterapkan' })
-    } catch (e) {
-      restoreProgress.value.push({ table: 'Pengaturan', status: 'err', msg: e.message })
-    }
-  }
-
-  if (restoreMode.value === 'data' && restoreFile.value.tables) {
-    const INSERT_ORDER = ['guru', 'siswa', 'nilai', 'nabil', 'sorogan', 'muadalah_konfig', 'muadalah_mapel', 'nilai_muadalah']
-    const extra = restoreTables.value.filter(k => !INSERT_ORDER.includes(k))
-    const insertOrder = [...INSERT_ORDER.filter(k => restoreTables.value.includes(k)), ...extra]
-    const deleteOrder = [...insertOrder].reverse()
-
-    for (const key of deleteOrder) {
-      try {
-        const { error } = await supabase.from(key).delete().neq('_never_', '__keep__')
-        if (error) throw error
-        restoreProgress.value.push({ table: `${key} (clear)`, status: 'ok', msg: 'OK' })
-      } catch (e) {
-        restoreProgress.value.push({ table: `${key} (clear)`, status: 'err', msg: e.message })
-        restoreLoading.value = false
-        return
-      }
-    }
-
-    for (const key of insertOrder) {
-      const rows = restoreFile.value.tables[key] || []
-      if (rows.length === 0) {
-        restoreProgress.value.push({ table: key, status: 'skip', msg: 'Kosong' })
-        continue
-      }
-      try {
-        for (let i = 0; i < rows.length; i += 500) {
-          const { error } = await supabase.from(key).insert(rows.slice(i, i + 500))
-          if (error) throw error
-        }
-        restoreProgress.value.push({ table: key, status: 'ok', msg: `${rows.length} record` })
-      } catch (e) {
-        restoreProgress.value.push({ table: key, status: 'err', msg: e.message })
-        restoreLoading.value = false
-        return
-      }
-    }
-  }
-
-  restoreLoading.value = false
-  showToast('Restore selesai')
-}
-
-const restoreHasError = computed(() => restoreProgress.value.some(p => p.status === 'err'))
-const restoreDone = computed(() => restoreProgress.value.length > 0 && !restoreLoading.value)
-
-// ═══════════════════════════════════════════
 // INFO & MAINTENANCE
 // ═══════════════════════════════════════════
 const connStatus = ref('idle')
@@ -853,125 +684,25 @@ const workflows = [
     <!-- CONTENT -->
     <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 md:p-6">
 
-      <!-- ═══ TAB: BACKUP & RESTORE ═══ -->
-      <div v-if="activeTab === 'backup'" class="space-y-6">
-
-        <!-- STATUS TABEL -->
-        <div>
-          <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-            <div>
-              <h2 class="text-base font-bold text-white mb-1">Status Database</h2>
-              <p class="text-xs text-slate-500">
-                {{ availableTables.length }} tabel terdeteksi ·
-                <b class="text-emerald-400">{{ totalRecords.toLocaleString('id-ID') }}</b> total record
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <div :class="[
-                'flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-[11px] font-semibold border',
-                connStatus === 'ok' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' :
-                connStatus === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-300' :
-                'bg-slate-800 border-slate-700 text-slate-400'
-              ]">
-                <Loader2 v-if="connStatus === 'loading'" class="w-3.5 h-3.5 animate-spin" />
-                <Wifi v-else-if="connStatus === 'ok'" class="w-3.5 h-3.5" />
-                <WifiOff v-else-if="connStatus === 'error'" class="w-3.5 h-3.5" />
-                <Server v-else class="w-3.5 h-3.5" />
-                {{ connStatus === 'ok' ? 'Terhubung' : connStatus === 'error' ? 'Gagal' : connStatus === 'loading' ? '...' : 'Idle' }}
-              </div>
-              <button @click="discoverTables" :disabled="tablesLoading"
-                      class="h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center justify-center transition disabled:opacity-50">
-                <RefreshCw :class="['w-3.5 h-3.5', tablesLoading ? 'animate-spin' : '']" />
-              </button>
-            </div>
-          </div>
-
-          <div v-if="tablesLoading && availableTables.length === 0"
-               class="p-6 rounded-xl border border-slate-800 bg-slate-950/40 text-center text-slate-500 text-xs">
-            <Loader2 class="w-4 h-4 mx-auto animate-spin mb-2 text-emerald-400" />
-            Mendeteksi tabel...
-          </div>
-
-          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            <div v-for="t in availableTables" :key="t.key"
-                 class="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-800 bg-slate-950/40">
-              <span class="text-[11.5px] text-slate-300 font-semibold truncate">{{ t.label }}</span>
-              <span class="text-[11px] text-emerald-400 font-mono font-bold">{{ t.count }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ACTIONS -->
-        <div class="pt-5 border-t border-slate-800">
-          <h2 class="text-base font-bold text-white mb-1">Unduh Data</h2>
-          <p class="text-xs text-slate-500 mb-4">
-            JSON = lengkap & bisa di-restore. Excel = format persis seperti ekspor di menu masing-masing.
-          </p>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <button @click="backupJSON" :disabled="!!backupLoading"
-                    class="group p-5 rounded-xl bg-gradient-to-br from-emerald-500/15 to-emerald-600/10 hover:from-emerald-500/25 hover:to-emerald-600/20 border border-emerald-500/30 text-left transition disabled:opacity-50">
-              <div class="flex items-center justify-between mb-2">
-                <FileJson class="w-6 h-6 text-emerald-400" />
-                <Loader2 v-if="backupLoading === 'json'" class="w-4 h-4 text-emerald-400 animate-spin" />
-              </div>
-              <div class="text-[14px] font-bold text-white">Backup JSON Lengkap</div>
-              <div class="text-[11.5px] text-emerald-200/70 mt-1 leading-relaxed">
-                Snapshot seluruh database ({{ availableTables.length }} tabel) + pengaturan. Bisa di-restore kembali.
-              </div>
-            </button>
-
-            <button @click="exportAllExcel" :disabled="exportLoading"
-                    class="group p-5 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-600/10 hover:from-blue-500/25 hover:to-blue-600/20 border border-blue-500/30 text-left transition disabled:opacity-50">
-              <div class="flex items-center justify-between mb-2">
-                <FileSpreadsheet class="w-6 h-6 text-blue-400" />
-                <Loader2 v-if="exportLoading" class="w-4 h-4 text-blue-400 animate-spin" />
-              </div>
-              <div class="text-[14px] font-bold text-white">Export Excel Profesional</div>
-              <div class="text-[11.5px] text-blue-200/70 mt-1 leading-relaxed">
-                10 sheet — <b class="text-blue-300">format persis</b> dengan ekspor di menu Siswa, Nilai, Muadalah, dan Guru.
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- RESTORE -->
-        <div class="pt-5 border-t border-slate-800">
-          <h2 class="text-base font-bold text-white mb-1">Restore dari JSON</h2>
-          <p class="text-xs text-slate-500 mb-4">
-            Unggah file JSON backup untuk mengembalikan data ke database.
-          </p>
-
-          <label class="block">
-            <div class="p-5 rounded-xl border-2 border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-950/40 hover:bg-slate-950/60 transition cursor-pointer">
-              <div class="flex flex-col items-center gap-2 text-center">
-                <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                  <Upload class="w-5 h-5 text-slate-400" />
-                </div>
-                <div class="text-[13px] font-semibold text-white">Klik untuk pilih file backup JSON</div>
-                <div class="text-[11px] text-slate-500">Format: .json</div>
-              </div>
-            </div>
-            <input type="file" accept=".json,application/json" class="hidden" @change="onRestoreFile" />
-          </label>
-
-          <div class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <div class="flex items-start gap-3">
-              <AlertTriangle class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div class="text-[12px] text-amber-200/90 leading-relaxed">
-                <b class="text-amber-300">Perhatian:</b> Restore akan <b>MENGHAPUS</b> isi tabel yang dipilih
-                lalu mengisinya dari file. Backup lama Anda tetap aman.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- ═══ TAB: INFO & MAINTENANCE ═══ -->
+      
       <div v-if="activeTab === 'info'" class="space-y-5">
         <div>
           <h2 class="text-base font-bold text-white mb-1">Info & Maintenance</h2>
           <p class="text-xs text-slate-500">Status sistem, koneksi, dan utilitas pembersihan</p>
         </div>
+
+        <button @click="exportAllExcel" :disabled="exportLoading"
+          class="group p-5 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-600/10 hover:from-blue-500/25 hover:to-blue-600/20 border border-blue-500/30 text-left transition disabled:opacity-50">
+          <div class="flex items-center justify-between mb-2">
+            <FileSpreadsheet class="w-6 h-6 text-blue-400" />
+            <Loader2 v-if="exportLoading" class="w-4 h-4 text-blue-400 animate-spin" />
+          </div>
+          <div class="text-[14px] font-bold text-white">Export Excel Profesional</div>
+          <div class="text-[11.5px] text-blue-200/70 mt-1 leading-relaxed">
+            10 sheet — <b class="text-blue-300">format persis</b> dengan ekspor di menu Siswa, Nilai, Muadalah, dan Guru.
+          </div>
+        </button>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
@@ -1103,127 +834,6 @@ const workflows = [
         </div>
       </div>
     </div>
-
-    <!-- RESTORE DIALOG -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="showRestoreDialog"
-             class="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
-             @click.self="!restoreLoading && closeRestoreDialog()">
-          <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-                  <Upload class="w-5 h-5 text-amber-400" />
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-base font-bold text-white">Konfirmasi Restore</h3>
-                  <p class="text-[11px] text-slate-400 truncate">{{ restoreFileName }}</p>
-                </div>
-              </div>
-              <button @click="closeRestoreDialog" :disabled="restoreLoading"
-                      class="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition disabled:opacity-50">
-                <X class="w-4 h-4" />
-              </button>
-            </div>
-
-            <div class="p-5 space-y-4 overflow-y-auto flex-1">
-              <div v-if="restoreFile?.meta"
-                   class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-[11.5px] space-y-1">
-                <div class="flex justify-between"><span class="text-slate-500">Dibuat</span><span class="text-slate-200 font-mono">{{ new Date(restoreFile.meta.generatedAt).toLocaleString('id-ID') }}</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Versi</span><span class="text-slate-200 font-mono">{{ restoreFile.meta.version }}</span></div>
-              </div>
-
-              <div v-if="restoreMode === 'config'"
-                   class="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/30">
-                <div class="flex items-center gap-2 mb-1">
-                  <Shield class="w-4 h-4 text-emerald-400" />
-                  <span class="text-[12px] font-bold text-emerald-300">Mode: Pengaturan Saja</span>
-                </div>
-                <div class="text-[11.5px] text-emerald-200/80 leading-relaxed">
-                  File hanya berisi konfigurasi. Tidak ada data siswa yang disentuh.
-                </div>
-              </div>
-
-              <div v-if="restoreMode === 'data'" class="space-y-3">
-                <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                  <div class="flex items-center gap-2 mb-1">
-                    <AlertTriangle class="w-4 h-4 text-red-400" />
-                    <span class="text-[12px] font-bold text-red-300">Mode: Data Lengkap (REPLACE)</span>
-                  </div>
-                  <div class="text-[11.5px] text-red-200/80 leading-relaxed">
-                    Tabel yang dicentang akan <b>dihapus dulu</b>, lalu diganti dari file.
-                  </div>
-                </div>
-
-                <div>
-                  <div class="text-[11px] font-bold text-slate-400 uppercase mb-1.5">Tabel yang di-restore</div>
-                  <div class="space-y-1 max-h-56 overflow-y-auto">
-                    <label v-for="t in restoreTableList" :key="t.key"
-                           class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-800 hover:bg-slate-800/40 cursor-pointer transition">
-                      <input type="checkbox" :checked="restoreTables.includes(t.key)"
-                             @change="toggleRestoreTable(t.key)" class="accent-emerald-500 w-3.5 h-3.5" />
-                      <span class="text-[12.5px] text-white font-semibold flex-1">{{ t.key }}</span>
-                      <span class="text-[11px] text-slate-500 font-mono">{{ t.count }} record</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">
-                    Ketik <span class="text-red-400 font-mono">RESTORE</span> untuk konfirmasi
-                  </label>
-                  <input v-model="restoreConfirmText" type="text" placeholder="RESTORE"
-                         class="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-lg text-[13px] text-white font-mono placeholder-slate-600 outline-none focus:border-red-500/60" />
-                </div>
-              </div>
-
-              <div v-if="restoreProgress.length > 0" class="space-y-1">
-                <div class="text-[11px] font-bold text-slate-400 uppercase mb-1">Hasil Restore</div>
-                <div v-for="(p, i) in restoreProgress" :key="i"
-                     class="flex items-center gap-2 px-2 py-1 rounded text-[11.5px]"
-                     :class="p.status === 'ok' ? 'text-emerald-300' : p.status === 'err' ? 'text-red-300' : 'text-slate-400'">
-                  <CheckCircle2 v-if="p.status === 'ok'" class="w-3.5 h-3.5 shrink-0" />
-                  <X v-else-if="p.status === 'err'" class="w-3.5 h-3.5 shrink-0" />
-                  <CircleDot v-else class="w-3.5 h-3.5 shrink-0" />
-                  <span class="font-semibold">{{ p.table }}</span>
-                  <span class="text-slate-500">—</span>
-                  <span class="truncate">{{ p.msg }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/50 flex justify-between items-center shrink-0">
-              <div class="text-[11px] text-slate-500">
-                <template v-if="restoreLoading">
-                  <Loader2 class="w-3 h-3 inline animate-spin mr-1" /> Memproses...
-                </template>
-                <template v-else-if="restoreDone">
-                  <span :class="restoreHasError ? 'text-red-400' : 'text-emerald-400'">
-                    {{ restoreHasError ? 'Ada error — cek hasil di atas' : 'Selesai' }}
-                  </span>
-                </template>
-              </div>
-              <div class="flex gap-2">
-                <button @click="closeRestoreDialog" :disabled="restoreLoading"
-                        class="h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[13px] font-semibold transition disabled:opacity-50">
-                  {{ restoreDone ? 'Tutup' : 'Batal' }}
-                </button>
-                <button @click="executeRestore" :disabled="!canRestore || restoreLoading || restoreDone"
-                        class="inline-flex items-center gap-1.5 h-10 px-5 rounded-xl text-white text-[13px] font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
-                        :class="restoreMode === 'data'
-                          ? 'bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 shadow-lg shadow-red-900/40'
-                          : 'bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 shadow-lg shadow-emerald-900/40'">
-                  <Loader2 v-if="restoreLoading" class="w-4 h-4 animate-spin" />
-                  <Upload v-else class="w-4 h-4" />
-                  {{ restoreLoading ? 'Memproses...' : 'Restore Sekarang' }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
