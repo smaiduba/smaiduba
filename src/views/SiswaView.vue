@@ -83,7 +83,14 @@ async function refreshTahunPreview() {
   editTahunPreview.value = result
 }
 
-watch(editTahunForm, () => { if (editTahunOpen.value) refreshTahunPreview() }, { deep: true })
+let tahunTimer = null
+watch(editTahunForm, () => { 
+  if (!editTahunOpen.value) return
+  clearTimeout(tahunTimer)
+  tahunTimer = setTimeout(() => {
+    refreshTahunPreview()
+  }, 500) // Tunggu 500ms setelah user berhenti mengetik
+}, { deep: true })
 
 function tutupEditTahun() {
   editTahunOpen.value = false
