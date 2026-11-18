@@ -1015,6 +1015,7 @@ onMounted(loadKonfig)
 </script>
 
 <template>
+  <div>
   <div class="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
 
     <!-- HEADER -->
@@ -1257,7 +1258,7 @@ onMounted(loadKonfig)
 
     <!-- ═══════ MODAL KONFIG ═══════ -->
     <div v-if="konfigModalOpen" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-3xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="modal-standard bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-3xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         <div class="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
@@ -1334,7 +1335,7 @@ onMounted(loadKonfig)
 
   <!-- ═══════ EXPORT MODAL ═══════ -->
     <div v-if="exportModalOpen" class="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="modal-standard bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         <div class="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
@@ -1423,7 +1424,7 @@ onMounted(loadKonfig)
 
     <!-- ═══════ IMPORT MODAL ═══════ -->
     <div v-if="importOpen" class="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="modal-standard bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         <div class="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
@@ -1609,4 +1610,5 @@ onMounted(loadKonfig)
         </div>
     </div>
     </div>
+  </div>
 </template>
