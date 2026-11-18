@@ -9,6 +9,7 @@ import {
 } from 'lucide-vue-next'
 import { confirm } from '../lib/confirm'
 import { writeXlsx } from '../lib/xlsx-lazy'
+import { isSiswaAktif } from '../lib/status'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,11 +50,12 @@ async function loadData() {
   isLoading.value = true
   const view = type.value === 'nabil' ? 'v_nabil_lengkap' : 'v_sorogan_lengkap'
   const { data, error } = await supabase.from(view).select('*').order('nama')
+  
   if (error) { alert(error.message); isLoading.value = false; return }
-  daftarData.value = (data || []).filter(s => {
-    const st = String(s.status || '').toLowerCase()
-    return st === 'aktif'
-  })
+  
+  // MENGUBAH FILTER: Pakai fungsi baru (menghapus pengecekan string lokal)
+  daftarData.value = (data || []).filter(s => isSiswaAktif(s))
+  
   isLoading.value = false
 }
 
@@ -124,7 +126,7 @@ async function bukaModalTambah() {
     supabase.from(type.value === 'nabil' ? 'nabil' : 'sorogan')
       .select(type.value === 'nabil' ? 'no_induk, kelompok_nabil' : 'no_induk, pembimbing')
   ])
-  allSiswa.value = (rSiswa.data || []).filter(s => String(s.status || '').toLowerCase().trim() === 'aktif')
+  allSiswa.value = (rSiswa.data || []).filter(s => isSiswaAktif(s))
   semuaRelasi.value = rRelasi.data || []
 }
 
