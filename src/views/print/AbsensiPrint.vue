@@ -3,6 +3,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import { Printer, ArrowLeft } from 'lucide-vue-next'
+import { isSiswaTampilDiAbsen } from '../../lib/status' 
 
 const route = useRoute()
 const router = useRouter()
@@ -25,13 +26,6 @@ function normalizeKelas(kelas) {
 function isBerhenti(kelas) {
   return /^Berhenti\s+/i.test(String(kelas || '').trim())
 }
-function isExcluded(kelas, status) {
-  const k = String(kelas || '').toLowerCase().trim()
-  const st = String(status || '').toLowerCase().trim()
-  if (k.startsWith('lulus') || st === 'lulus') return true
-  if (k.includes('keluar') || k.includes('mutasi')) return true
-  return false
-}
 
 onMounted(async () => {
   const type = route.params.type || 'kelas'
@@ -43,9 +37,15 @@ onMounted(async () => {
   if (type === 'kelas') {
     const { data: rows } = await supabase.from('siswa').select('no_induk, nama, kelas, alamat, status').order('nama')
     const list = (rows || [])
-      .filter(s => !isExcluded(s.kelas, s.status))
+      .filter(s => isSiswaTampilDiAbsen(s)) // <-- GUNAKAN FUNGSI BARU INI
       .filter(s => normalizeKelas(s.kelas) === normalizeKelas(key))
-      .map((s, i) => ({ no: i + 1, noInduk: s.no_induk, nama: s.nama, alamat: s.alamat || '', berhenti: isBerhenti(s.kelas) }))
+      .map((s, i) => ({ 
+        no: i + 1, 
+        noInduk: s.no_induk, 
+        nama: s.nama, 
+        alamat: s.alamat || '', 
+        berhenti: String(s.kelas).toLowerCase().includes('berhenti') // Ini akan memberi warna merah
+      }))
     data.value = {
       kelas: key, jenis: q.jenis || 'guru', semester: q.semester || 'Ganjil', tahun: q.tahun || '',
       mapel: q.mapel || '', guru: q.guru || '', waliKelas: q.waliKelas || '',
@@ -55,7 +55,7 @@ onMounted(async () => {
   } else if (type === 'nabil') {
     const { data: rows } = await supabase.from('v_nabil_lengkap').select('*').eq('kelompok_nabil', key).order('nama')
     const list = (rows || [])
-      .filter(s => String(s.status || '').toLowerCase() === 'aktif')
+      .filter(s => isSiswaAktif(s))
       .map((s, i) => ({ no: i + 1, noInduk: s.no_induk, nama: s.nama, alamat: s.alamat || '', berhenti: false }))
     data.value = {
       kelas: 'Kelompok ' + key, jenis: q.jenis || 'guru', semester: q.semester || 'Ganjil', tahun: q.tahun || '',
@@ -66,7 +66,7 @@ onMounted(async () => {
   } else if (type === 'sorogan') {
     const { data: rows } = await supabase.from('v_sorogan_lengkap').select('*').eq('pembimbing', key).order('nama')
     const list = (rows || [])
-      .filter(s => String(s.status || '').toLowerCase() === 'aktif')
+      .filter(s => isSiswaAktif(s))
       .map((s, i) => ({ no: i + 1, noInduk: s.no_induk, nama: s.nama, alamat: s.alamat || '', berhenti: false }))
     data.value = {
       kelas: 'Kelas Sorogan', jenis: q.jenis || 'guru', semester: q.semester || 'Ganjil', tahun: q.tahun || '',
