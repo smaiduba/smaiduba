@@ -636,6 +636,27 @@ async function prosesImport() {
   const uniquePayload = Array.from(uniqueMap.values())
   const dup = payload.length - uniquePayload.length
 
+    // --- TAMBAHAN BARU: Ambil data lama untuk mencegah Data Loss ---
+  const existingMap = {}
+  if (uniquePayload.length > 0) {
+    const noIndukList = uniquePayload.map(p => p.no_induk)
+    const { data: existing } = await supabase.from('siswa')
+      .select('no_induk, detail_data')
+      .in('no_induk', noIndukList)
+      
+    if (existing) {
+      existing.forEach(e => {
+        existingMap[e.no_induk] = e.detail_data || {}
+      })
+    }
+  }
+  
+  // Gabungkan detail_data lama dengan yang baru dari Excel
+  uniquePayload.forEach(p => {
+    p.detail_data = { ...(existingMap[p.no_induk] || {}), ...p.detail_data }
+  })
+  // ---------------------------------------------------------------
+
   const BATCH = 200
   let sukses = 0, gagal = tidakLengkap + dup
   const errorLogs = []
