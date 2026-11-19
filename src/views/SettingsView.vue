@@ -1,16 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { pengaturan } from '../stores/pengaturan'
 import { userSesi } from '../stores/auth'
 import { supabase } from '../lib/supabase'
 import { confirm } from '../lib/confirm'
 import { ensureXLSX } from '../lib/xlsx-lazy'
 import { getTahunPerTingkatLengkap } from '../lib/tahun'
 import {
-  Database, Info, BookOpen, FileJson, FileSpreadsheet,
-  CheckCircle2, Loader2, AlertTriangle, Wifi, WifiOff, RefreshCw,
+  Database, Info, BookOpen, FileSpreadsheet,
+  CheckCircle2, Loader2, Wifi, WifiOff, RefreshCw,
   Trash2, HardDrive, Server, User, CircleDot,
-  Upload, X, Shield, Zap, Keyboard, HelpCircle
+  Zap, Keyboard, HelpCircle
 } from 'lucide-vue-next'
 
 const activeTab = ref('info')
@@ -25,43 +24,6 @@ function showToast(msg) {
   toast.value = msg
   setTimeout(() => { toast.value = '' }, 3200)
 }
-
-// ═══════════════════════════════════════════
-// TABLE DISCOVERY
-// ═══════════════════════════════════════════
-const CANDIDATE_TABLES = [
-  { key: 'siswa',           label: 'Siswa' },
-  { key: 'nilai',           label: 'Nilai Akademik' },
-  { key: 'guru',            label: 'Dewan Guru' },
-  { key: 'nabil',           label: 'Relasi Nabil' },
-  { key: 'sorogan',         label: 'Relasi Sorogan' },
-  { key: 'muadalah_konfig', label: 'Muadalah Konfig' },
-  { key: 'muadalah_mapel',  label: 'Muadalah Mapel' },
-  { key: 'nilai_muadalah',  label: 'Nilai Muadalah' },
-  { key: 'absensi',         label: 'Absensi' },
-  { key: 'absensi_harian',  label: 'Absensi Harian' },
-  { key: 'kaldik',          label: 'Kalender Akademik' },
-  { key: 'jadwal',          label: 'Jadwal Pelajaran' }
-]
-
-const availableTables = ref([])
-const tablesLoading = ref(false)
-
-async function discoverTables() {
-  tablesLoading.value = true
-  const found = []
-  for (const t of CANDIDATE_TABLES) {
-    try {
-      const { count, error } = await supabase.from(t.key).select('*', { count: 'exact', head: true })
-      if (error) continue
-      found.push({ key: t.key, label: t.label, count: count || 0 })
-    } catch { /* skip */ }
-  }
-  availableTables.value = found
-  tablesLoading.value = false
-}
-
-const totalRecords = computed(() => availableTables.value.reduce((a, b) => a + b.count, 0))
 
 // ═══════════════════════════════════════════
 // EXPORT EXCEL GABUNGAN (10 sheet)
@@ -624,7 +586,6 @@ const browserInfo = computed(() => {
 onMounted(() => {
   calcStorage()
   testConnection()
-  discoverTables()
 })
 
 // ═══════════════════════════════════════════
