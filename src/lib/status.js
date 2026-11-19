@@ -1,23 +1,20 @@
+// Hanya status "aktif" yang dianggap aktif (dipakai di statistik & daftar)
 export function isSiswaAktif(siswa) {
   if (!siswa) return false
-  const status = String(siswa.status || '').toLowerCase().trim()
-  const kelas = String(siswa.kelas || '').toLowerCase().trim()
-  
-  if (['lulus', 'keluar', 'mutasi', 'berhenti'].includes(status)) return false
-  if (status === 'aktif') return true
-  if (kelas.includes('lulus') || kelas.includes('berhenti') || kelas.includes('mutasi')) return false
-  return true
+  return String(siswa.status || '').toLowerCase().trim() === 'aktif'
 }
 
+// Khusus kertas absen: lebih longgar.
+// Siswa dengan kelas mengandung "berhenti" (mis. "Berhenti XI A")
+// tetap masuk kertas absen, meskipun statusnya "Berhenti".
 export function isSiswaTampilDiAbsen(siswa) {
   if (!siswa) return false
   const status = String(siswa.status || '').toLowerCase().trim()
-  const kelas = String(siswa.kelas || '').toLowerCase().trim()
-  
-  // Hanya singkirkan yang Lulus, Keluar, atau Mutasi
-  // Kata "Berhenti" TIDAK disingkirkan agar tetap tampil di kertas absen
-  if (['lulus', 'keluar', 'mutasi'].includes(status)) return false
-  if (kelas.includes('lulus') || kelas.includes('keluar') || kelas.includes('mutasi')) return false
-  
-  return true
+  const kelas  = String(siswa.kelas  || '').toLowerCase().trim()
+
+  // Kelas berhenti → tetap tampil di kertas absen
+  if (kelas.includes('berhenti')) return true
+
+  // Selain itu ikuti definisi aktif
+  return status === 'aktif'
 }
