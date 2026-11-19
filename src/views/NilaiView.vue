@@ -789,70 +789,70 @@ onMounted(ambilData)
           <span class="text-emerald-400 font-semibold">{{ stats.total }}</span> siswa terdaftar
         </p>
       </div>
-      <div class="flex flex-wrap gap-2 shrink-0">
+      <div class="flex gap-2 shrink-0">
         <button @click="bukaImport"
-                class="inline-flex items-center gap-2 px-3.5 h-10 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[13px] font-semibold transition">
+                class="inline-flex items-center justify-center gap-2 w-10 sm:w-auto sm:px-3.5 h-10 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[13px] font-semibold transition">
           <FileUp class="w-4 h-4" /><span class="hidden sm:inline">Import</span>
         </button>
         <button @click="bukaExport"
-                class="inline-flex items-center gap-2 px-4 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-[13px] font-bold shadow-lg shadow-emerald-900/40 transition">
+                class="inline-flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-[13px] font-bold shadow-lg shadow-emerald-900/40 transition">
           <Download class="w-4 h-4" /><span>Export</span>
         </button>
       </div>
     </div>
 
     <!-- STATS -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-3.5">
-        <div class="flex items-center gap-2 text-slate-500 text-[10.5px] font-bold uppercase tracking-wider mb-1.5">
-          <Users class="w-3.5 h-3.5" /> Total
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+      <div class="rounded-xl md:rounded-2xl border border-slate-800 bg-slate-900/50 p-2.5 md:p-3.5">
+        <div class="flex items-center gap-1.5 text-slate-500 text-[9.5px] md:text-[10.5px] font-bold uppercase tracking-wider mb-1">
+          <Users class="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" /> Total
         </div>
-        <div class="text-2xl font-bold text-white">{{ stats.total }}</div>
-        <div class="text-[10.5px] text-slate-500 mt-0.5">Siswa terdaftar</div>
+        <div class="text-lg md:text-2xl font-bold text-white leading-none">{{ stats.total }}</div>
+        <div class="hidden md:block text-[10.5px] text-slate-500 mt-0.5">Siswa terdaftar</div>
       </div>
-      <div class="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5">
-        <div class="flex items-center gap-2 text-emerald-400 text-[10.5px] font-bold uppercase tracking-wider mb-1.5">
-          <CheckCircle2 class="w-3.5 h-3.5" /> Sudah Dinilai
+      <div class="rounded-xl md:rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-2.5 md:p-3.5">
+        <div class="flex items-center gap-1.5 text-emerald-400 text-[9.5px] md:text-[10.5px] font-bold uppercase tracking-wider mb-1">
+          <CheckCircle2 class="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" /> Sudah Dinilai
         </div>
-        <div class="text-2xl font-bold text-emerald-400">{{ stats.dinilai }}</div>
-        <div class="text-[10.5px] text-slate-500 mt-0.5">Memiliki data nilai</div>
+        <div class="text-lg md:text-2xl font-bold text-emerald-400 leading-none">{{ stats.dinilai }}</div>
+        <div class="hidden md:block text-[10.5px] text-slate-500 mt-0.5">Memiliki data nilai</div>
       </div>
-      <div class="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3.5">
-        <div class="flex items-center gap-2 text-amber-400 text-[10.5px] font-bold uppercase tracking-wider mb-1.5">
-          <AlertCircle class="w-3.5 h-3.5" /> Belum Dinilai
+      <div class="rounded-xl md:rounded-2xl border border-amber-500/30 bg-amber-500/5 p-2.5 md:p-3.5">
+        <div class="flex items-center gap-1.5 text-amber-400 text-[9.5px] md:text-[10.5px] font-bold uppercase tracking-wider mb-1">
+          <AlertCircle class="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" /> Belum Dinilai
         </div>
-        <div class="text-2xl font-bold text-amber-400">{{ stats.belum }}</div>
-        <div class="text-[10.5px] text-slate-500 mt-0.5">Belum ada nilai</div>
+        <div class="text-lg md:text-2xl font-bold text-amber-400 leading-none">{{ stats.belum }}</div>
+        <div class="hidden md:block text-[10.5px] text-slate-500 mt-0.5">Belum ada nilai</div>
       </div>
-      <div class="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-3.5">
-        <div class="flex items-center gap-2 text-blue-400 text-[10.5px] font-bold uppercase tracking-wider mb-1.5">
-          <TrendingUp class="w-3.5 h-3.5" /> Rata DKN
+      <div class="rounded-xl md:rounded-2xl border border-blue-500/30 bg-blue-500/5 p-2.5 md:p-3.5">
+        <div class="flex items-center gap-1.5 text-blue-400 text-[9.5px] md:text-[10.5px] font-bold uppercase tracking-wider mb-1">
+          <TrendingUp class="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" /> Rata DKN
         </div>
-        <div class="text-2xl font-bold text-blue-400">{{ stats.rataDKN }}</div>
-        <div class="text-[10.5px] text-slate-500 mt-0.5">Rata-rata seluruh siswa</div>
+        <div class="text-lg md:text-2xl font-bold text-blue-400 leading-none">{{ stats.rataDKN }}</div>
+        <div class="hidden md:block text-[10.5px] text-slate-500 mt-0.5">Rata-rata seluruh siswa</div>
       </div>
     </div>
 
     <!-- FILTER -->
     <div class="rounded-2xl border border-slate-800/80 bg-slate-900/50 p-3">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5">
-        <div class="lg:col-span-5 relative">
+      <div class="grid grid-cols-3 lg:grid-cols-12 gap-2">
+        <div class="col-span-3 lg:col-span-5 relative">
           <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
           <input v-model="pencarian" type="text" placeholder="Cari nama, no induk, atau NISN..."
-                 class="w-full h-10 pl-10 pr-10 bg-slate-950 border border-slate-800 rounded-lg text-[13px] text-white placeholder-slate-500 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 transition-all" />
+                class="w-full h-10 pl-10 pr-10 bg-slate-950 border border-slate-800 rounded-lg text-[13px] text-white placeholder-slate-500 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 transition-all" />
           <button v-if="pencarian" @click="pencarian = ''"
                   class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
             <X class="w-3.5 h-3.5" />
           </button>
         </div>
-        <div class="lg:col-span-3">
-          <CustomSelect v-model="filterSmt" :options="filterSmtOptions" placeholder="Semua Semester" />
+        <div class="col-span-1 lg:col-span-3">
+          <CustomSelect v-model="filterSmt" :options="filterSmtOptions" placeholder="Semester" />
         </div>
-        <div class="lg:col-span-2">
-          <CustomSelect v-model="filterKelas" :options="filterKelasOptions" placeholder="Semua Kelas" searchable />
+        <div class="col-span-1 lg:col-span-2">
+          <CustomSelect v-model="filterKelas" :options="filterKelasOptions" placeholder="Kelas" searchable />
         </div>
-        <div class="lg:col-span-2">
-          <CustomSelect v-model="filterAngkatan" :options="filterAngkatanOptions" placeholder="Semua Angkatan" searchable />
+        <div class="col-span-1 lg:col-span-2">
+          <CustomSelect v-model="filterAngkatan" :options="filterAngkatanOptions" placeholder="Angkatan" searchable />
         </div>
       </div>
     </div>
@@ -864,23 +864,28 @@ onMounted(ambilData)
           Menampilkan <b class="text-slate-200">{{ nilaiTampil.length }}</b> dari
           <b class="text-emerald-400">{{ nilaiTerfilter.length }}</b> data
         </div>
-        <div class="flex items-center gap-1.5">
-          <button @click="currentPage = Math.max(1, currentPage - 1)" :disabled="currentPage === 1"
-                  class="h-8 px-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition">
-            Prev
-          </button>
-          <div class="h-8 px-3 flex items-center rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300">
-            {{ currentPage }} / {{ totalHalaman }}
+        <div class="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+          <div class="relative h-8 w-[92px] shrink-0">
+            <CustomSelect v-model.number="pageSize" :options="pageSizeOptions" size="sm" />
           </div>
-          <button @click="currentPage = Math.min(totalHalaman, currentPage + 1)" :disabled="currentPage >= totalHalaman"
-                  class="h-8 px-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition">
-            Next
-          </button>
+          <div class="flex items-center gap-1.5 ml-auto sm:ml-0">
+            <button @click="currentPage = Math.max(1, currentPage - 1)" :disabled="currentPage === 1"
+                    class="h-8 px-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition">
+              Prev
+            </button>
+            <div class="h-8 px-3 flex items-center rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 whitespace-nowrap">
+              {{ currentPage }} / {{ totalHalaman }}
+            </div>
+            <button @click="currentPage = Math.min(totalHalaman, currentPage + 1)" :disabled="currentPage >= totalHalaman"
+                    class="h-8 px-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition">
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm" style="table-layout: fixed;">
+      <div class="overflow-x-auto hidden md:block">
+        <table class="w-full min-w-[900px] text-sm" style="table-layout: fixed;">
           <colgroup>
             <col style="width: 44px;">
             <col style="width: 100px;">
@@ -921,7 +926,7 @@ onMounted(ambilData)
               </td>
               <td class="px-3 py-3">
                 <div class="font-semibold text-white text-[13px] truncate">{{ item.siswa?.nama || '-' }}</div>
-                <div class="text-[10.5px] text-slate-500 mt-0.5">{{ item.siswa?.kelas || 'Tanpa kelas' }}</div>
+                <div class="text-[10.5px] text-slate-500 mt-0.5 truncate">{{ item.siswa?.kelas || 'Tanpa kelas' }}</div>
               </td>
               <td v-for="i in 6" :key="i" class="px-2 py-3 text-center">
                 <span class="font-mono text-[12px] text-slate-200 tabular-nums">
@@ -952,17 +957,64 @@ onMounted(ambilData)
         </table>
       </div>
 
-      <div class="px-4 py-3 border-t border-slate-800/80 bg-slate-950/40 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <div class="text-xs text-slate-400">Total: <b class="text-emerald-400">{{ nilaiTerfilter.length }}</b> data</div>
-        <div class="w-24">
-          <CustomSelect v-model.number="pageSize" :options="pageSizeOptions" size="sm" />
+      <!-- KARTU NILAI (KHUSUS HP) -->
+      <div class="md:hidden divide-y divide-slate-800/60">
+        <div v-if="isLoading" class="p-8 text-center text-slate-500 text-sm">Memuat data...</div>
+        <div v-else-if="nilaiTampil.length === 0" class="p-8 text-center">
+          <div class="text-slate-500 text-sm">Tidak ada data yang cocok</div>
+          <div class="text-slate-600 text-xs mt-1">Coba ubah filter atau kata kunci</div>
         </div>
+        <div v-for="item in nilaiTampil" :key="item.no_induk" class="p-3.5 active:bg-slate-800/30 transition">
+          <div class="flex items-start gap-2.5">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {{ (item.siswa?.nama || '?').charAt(0).toUpperCase() }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-[13.5px] font-bold text-white truncate">{{ item.siswa?.nama || '-' }}</h3>
+              <div class="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 font-mono flex-wrap">
+                <span>{{ item.no_induk }}</span>
+                <span v-if="item.siswa?.kelas" class="text-slate-600">•</span>
+                <span v-if="item.siswa?.kelas" class="inline-flex px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">{{ item.siswa.kelas }}</span>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-[9px] uppercase tracking-wider text-emerald-400 font-bold">DKN</div>
+              <div class="text-lg font-bold text-emerald-400 font-mono leading-tight">{{ item.dkn }}</div>
+            </div>
+          </div>
+
+          <!-- 6 Semester mini-grid -->
+          <div class="grid grid-cols-6 gap-1 mt-2.5">
+            <div v-for="i in 6" :key="i" class="text-center rounded-md bg-slate-950/60 border border-slate-800 py-1">
+              <div class="text-[8.5px] uppercase tracking-wider text-slate-500 font-bold">S{{ i }}</div>
+              <div class="text-[11px] font-mono font-semibold text-slate-200 tabular-nums">
+                {{ item.smtRata[i-1] !== null ? item.smtRata[i-1].toFixed(2) : '—' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 mt-2.5">
+            <button @click="bukaDetail(item)" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-[11.5px] font-semibold active:scale-95 transition">
+              <Eye class="w-3.5 h-3.5 text-blue-400" /> Detail
+            </button>
+            <button @click="bukaEdit(item)" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-[11.5px] font-semibold active:scale-95 transition">
+              <Edit class="w-3.5 h-3.5 text-amber-400" /> Edit
+            </button>
+            <button @click="hapusNilai(item)" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-800/60 hover:bg-red-500/15 text-slate-300 hover:text-red-400 text-[11.5px] font-semibold active:scale-95 transition">
+              <Trash2 class="w-3.5 h-3.5" /> Hapus
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-4 py-2 border-t border-slate-800/80 bg-slate-950/40 text-center text-[11px] text-slate-500">
+        Total <b class="text-emerald-400">{{ nilaiTerfilter.length }}</b> data
       </div>
     </div>
 
     <!-- ═══════ DETAIL MODAL ═══════ -->
     <div v-if="detailOpen && detailItem" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="modal-standard bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
         <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/50 rounded-t-2xl shrink-0">
           <div class="flex items-center gap-3 min-w-0">
             <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-lg">
@@ -1036,7 +1088,7 @@ onMounted(ambilData)
 
     <!-- ═══════ EDIT NILAI MODAL ═══════ -->
     <div v-if="editOpen && editSiswa && editForm" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col w-full max-w-4xl max-h-[94vh]">
+      <div class="modal-standard bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col w-full max-w-4xl max-h-[94vh]">
         <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3 min-w-0">
             <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shrink-0">
@@ -1120,7 +1172,7 @@ onMounted(ambilData)
 
     <!-- ═══════ IMPORT MODAL ═══════ -->
     <div v-if="importOpen" class="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="modal-standard bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         <div class="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
@@ -1311,7 +1363,7 @@ onMounted(ambilData)
 
     <!-- ═══════ EXPORT MODAL ═══════ -->
     <div v-if="exportOpen" class="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="modal-standard bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         <div class="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
