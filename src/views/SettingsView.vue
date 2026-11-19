@@ -5,19 +5,21 @@ import { supabase } from '../lib/supabase'
 import { confirm } from '../lib/confirm'
 import { ensureXLSX } from '../lib/xlsx-lazy'
 import { getTahunPerTingkatLengkap } from '../lib/tahun'
+import { theme, toggleTheme } from '../stores/theme'
 import {
-  Database, Info, BookOpen, FileSpreadsheet,
+  Settings, Info, BookOpen, FileSpreadsheet,
   CheckCircle2, Loader2, Wifi, WifiOff, RefreshCw,
   Trash2, HardDrive, Server, User, CircleDot,
-  Zap, Keyboard, HelpCircle
+  Zap, Keyboard, ChevronRight, Lightbulb, ShieldCheck,
+  Sun, Moon
 } from 'lucide-vue-next'
 
 const activeTab = ref('info')
 const toast = ref('')
 
 const tabs = [
-  { id: 'info',    label: 'Info & Maintenance', icon: Info },
-  { id: 'panduan', label: 'Panduan',            icon: BookOpen }
+  { id: 'info',    label: 'Sistem & Perawatan', desc: 'Status, koneksi, export, cache', icon: Info },
+  { id: 'panduan', label: 'Panduan',            desc: 'Shortcut & alur kerja',          icon: BookOpen }
 ]
 
 function showToast(msg) {
@@ -25,15 +27,13 @@ function showToast(msg) {
   setTimeout(() => { toast.value = '' }, 3200)
 }
 
-// ═══════════════════════════════════════════
-// EXPORT EXCEL GABUNGAN (10 sheet)
-// ═══════════════════════════════════════════
+// ═══════════════ EXPORT EXCEL (logika tidak berubah) ═══════════════
 const exportLoading = ref(false)
 
 async function exportAllExcel() {
   const ok = await confirm({
     title: 'Export Excel Profesional',
-    message: 'Akan membuat 1 file Excel berisi 10 sheet — formatnya PERSIS sama dengan ekspor di menu masing-masing:\n\n1. Data Siswa (57 kolom)\n2. Nilai Akademik (255 kolom, 6 semester + IJAZAH + DKN)\n3. Konfigurasi Muadalah\n4–9. Muadalah X I · X II · XI I · XI II · XII I · XII II\n10. Data Guru (12 kolom)\n\nLanjutkan?',
+    message: 'Akan membuat 1 file Excel berisi 10 sheet — formatnya PERSIS sama dengan ekspor di menu masing-masing.\n\nLanjutkan?',
     variant: 'info',
     confirmText: 'Ya, Export'
   })
@@ -42,7 +42,6 @@ async function exportAllExcel() {
   exportLoading.value = true
   try {
     const XLSX = await ensureXLSX()
-
     const [
       { data: siswaData,  error: e1 },
       { data: nilaiData,  error: e2 },
@@ -58,7 +57,6 @@ async function exportAllExcel() {
       supabase.from('muadalah_mapel').select('*').eq('is_active', true).order('urutan'),
       supabase.from('nilai_muadalah').select('*')
     ])
-
     const errs = [e1, e2, e3, e4, e5, e6].filter(Boolean)
     if (errs.length) throw new Error(errs[0].message)
 
@@ -73,15 +71,13 @@ async function exportAllExcel() {
       || 'Administrator'
 
     const wb = XLSX.utils.book_new()
-
     buildSheetSiswa(XLSX, wb, siswaData || [], waktu, namaUser)
     buildSheetNilai(XLSX, wb, siswaData || [], nilaiData || [], waktu, namaUser)
     buildSheetMuadalahKonfig(XLSX, wb, konfigData || [], mapelData || [], waktu, namaUser)
     buildSheetMuadalahSemester(XLSX, wb, siswaData || [], konfigData || [], mapelData || [], nilaiMData || [], waktu, namaUser)
     buildSheetGuru(XLSX, wb, guruData || [], waktu, namaUser)
 
-    const date = now.toISOString().slice(0, 10)
-    XLSX.writeFile(wb, `SIMAK_Export_${date}.xlsx`)
+    XLSX.writeFile(wb, `SIMAK_Export_${now.toISOString().slice(0, 10)}.xlsx`)
     showToast('Export Excel berhasil — 10 sheet')
   } catch (e) {
     alert('Gagal export: ' + e.message)
@@ -90,7 +86,7 @@ async function exportAllExcel() {
   }
 }
 
-// ─── Sheet 1: DATA SISWA (persis EXPORT_COLUMNS SiswaView) ───
+// ─── Sheet builders (identik dengan versi sebelumnya) ───
 function buildSheetSiswa(XLSX, wb, siswaRows, waktu, namaUser) {
   const EXPORT_COLUMNS = [
     { key: 'no_induk', label: 'No Induk', source: 'core' },
@@ -150,40 +146,32 @@ function buildSheetSiswa(XLSX, wb, siswaRows, waktu, namaUser) {
     { key: 'tgl_kelulusan', label: 'Tanggal Kelulusan', source: 'detail' },
     { key: 'foto', label: 'URL Foto', source: 'detail' }
   ]
-
   const filtered = siswaRows.filter(s => {
     const st = String(s.status || '').toLowerCase()
     const ni = String(s.no_induk || '').toLowerCase()
     return !st.includes('angkatan') && !ni.includes('angkatan')
   })
-
-  const aoa = []
-  aoa.push(['Waktu Pengunduhan:', waktu])
-  aoa.push(['Nama Pengunduh:', namaUser])
-  aoa.push(['Filter Pengunduhan:', 'Semua Data'])
-  aoa.push(['Total Siswa:', filtered.length])
-  aoa.push([])
-  aoa.push(EXPORT_COLUMNS.map(c => c.label))
-
+  const aoa = [
+    ['Waktu Pengunduhan:', waktu],
+    ['Nama Pengunduh:', namaUser],
+    ['Filter Pengunduhan:', 'Semua Data'],
+    ['Total Siswa:', filtered.length],
+    [],
+    EXPORT_COLUMNS.map(c => c.label)
+  ]
   filtered.forEach(it => {
     const detail = it.detail_data || {}
-    const row = EXPORT_COLUMNS.map(c => {
+    aoa.push(EXPORT_COLUMNS.map(c => {
       const val = c.source === 'core' ? it[c.key] : detail[c.key]
-      if (val === null || val === undefined) return ''
-      return String(val)
-    })
-    aoa.push(row)
+      return val === null || val === undefined ? '' : String(val)
+    }))
   })
-
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   ws['!cols'] = EXPORT_COLUMNS.map(c => ({ wch: Math.max(12, Math.min(30, c.label.length + 3)) }))
-  ws['!autofilter'] = {
-    ref: XLSX.utils.encode_range({ s: { r: 5, c: 0 }, e: { r: 5 + filtered.length, c: EXPORT_COLUMNS.length - 1 } })
-  }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 5, c: 0 }, e: { r: 5 + filtered.length, c: EXPORT_COLUMNS.length - 1 } }) }
   XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa')
 }
 
-// ─── Sheet 2: NILAI AKADEMIK (persis exportDo NilaiView, mode semua semester) ───
 function buildSheetNilai(XLSX, wb, siswaRows, nilaiRows, waktu, namaUser) {
   const MAPEL_LIST = [
     'Pendidikan Agama Islam dan Budi Pekerti', 'Pendidikan Pancasila', 'Bahasa Indonesia',
@@ -193,8 +181,6 @@ function buildSheetNilai(XLSX, wb, siswaRows, nilaiRows, waktu, namaUser) {
     'Bahasa Arab', 'Bahasa Daerah', 'Fiqih'
   ]
   const SEM_KEYS_ = ['smt1', 'smt2', 'smt3', 'smt4', 'smt5', 'smt6']
-  const semKeys = SEM_KEYS_
-
   const filtered = siswaRows.filter(s => {
     const st = String(s.status || '').toLowerCase()
     const ni = String(s.no_induk || '').toLowerCase()
@@ -206,44 +192,39 @@ function buildSheetNilai(XLSX, wb, siswaRows, nilaiRows, waktu, namaUser) {
 
   const h1 = [], h2 = [], merges = []
   const OFFSET = 5
-  h1.push('No Induk', 'Nama')
-  h2.push('', '')
+  h1.push('No Induk', 'Nama'); h2.push('', '')
   merges.push({ s: { r: OFFSET, c: 0 }, e: { r: OFFSET + 1, c: 0 } })
   merges.push({ s: { r: OFFSET, c: 1 }, e: { r: OFFSET + 1, c: 1 } })
   let col = 2
-
-  semKeys.forEach((sk, i) => {
+  SEM_KEYS_.forEach((_, i) => {
     const start = col
     h1.push('Smt ' + (i + 1))
     for (let k = 1; k < 39; k++) h1.push('')
     merges.push({ s: { r: OFFSET, c: start }, e: { r: OFFSET, c: start + 38 } })
-    h2.push('TAHUN')
-    for (const mp of MAPEL_LIST) h2.push(mp)
-    h2.push('JUMLAH', 'RATA-RATA')
-    for (const mp of MAPEL_LIST) h2.push(mp)
+    h2.push('TAHUN'); MAPEL_LIST.forEach(mp => h2.push(mp))
+    h2.push('JUMLAH', 'RATA-RATA'); MAPEL_LIST.forEach(mp => h2.push(mp))
     col += 39
   })
-
   const ijStart = col
   h1.push('IJAZAH'); for (let k = 1; k < 18; k++) h1.push('')
-  for (const mp of MAPEL_LIST) h2.push(mp)
+  MAPEL_LIST.forEach(mp => h2.push(mp))
   merges.push({ s: { r: OFFSET, c: ijStart }, e: { r: OFFSET, c: ijStart + 17 } }); col += 18
   h1.push('Rata-rata Ijazah'); h2.push('')
   merges.push({ s: { r: OFFSET, c: col }, e: { r: OFFSET + 1, c: col } })
 
-  const aoa = []
-  aoa.push(['Waktu Pengunduhan:', waktu])
-  aoa.push(['Nama Pengunduh:', namaUser])
-  aoa.push(['Filter Pengunduhan:', 'Semester: Semua'])
-  aoa.push(['Total Siswa:', filtered.length])
-  aoa.push([])
-  aoa.push(h1)
-  aoa.push(h2)
+  const aoa = [
+    ['Waktu Pengunduhan:', waktu],
+    ['Nama Pengunduh:', namaUser],
+    ['Filter Pengunduhan:', 'Semester: Semua'],
+    ['Total Siswa:', filtered.length],
+    [],
+    h1, h2
+  ]
 
   filtered.forEach(item => {
     const nd = nilaiMap[item.no_induk] || {}
     const row = [item.no_induk || '', item.nama || '']
-    semKeys.forEach(sk => {
+    SEM_KEYS_.forEach(sk => {
       const sem = nd[sk] || {}
       row.push(sem.tahun || '')
       let sumT = 0, cntT = 0
@@ -291,32 +272,22 @@ function buildSheetNilai(XLSX, wb, siswaRows, nilaiRows, waktu, namaUser) {
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   ws['!merges'] = merges
   ws['!cols'] = widths
-  ws['!autofilter'] = {
-    ref: XLSX.utils.encode_range({
-      s: { r: OFFSET + 1, c: 0 },
-      e: { r: OFFSET + 1 + filtered.length, c: h1.length - 1 }
-    })
-  }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: OFFSET + 1, c: 0 }, e: { r: OFFSET + 1 + filtered.length, c: h1.length - 1 } }) }
   XLSX.utils.book_append_sheet(wb, ws, 'Nilai Akademik')
 }
 
-// ─── Sheet 3: KONFIGURASI MUADALAH (persis doExport MuadalahView) ───
 function buildSheetMuadalahKonfig(XLSX, wb, konfigRows, mapelRows, waktu, namaUser) {
-  const cfgAoa = []
-  cfgAoa.push(['Waktu Pengunduhan:', waktu])
-  cfgAoa.push(['Nama Pengunduh:', namaUser])
-  cfgAoa.push([])
-
+  const cfgAoa = [
+    ['Waktu Pengunduhan:', waktu],
+    ['Nama Pengunduh:', namaUser],
+    []
+  ]
   const cfgHeader = ['NO', 'TAHUN PELAJARAN', 'KELAS', 'SEMESTER']
   for (let i = 1; i <= 30; i++) cfgHeader.push('MAPEL ' + i)
   cfgAoa.push(cfgHeader)
 
   const mapelByCfg = {}
-  mapelRows.forEach(m => {
-    if (!mapelByCfg[m.konfig_id]) mapelByCfg[m.konfig_id] = []
-    mapelByCfg[m.konfig_id].push(m)
-  })
-
+  mapelRows.forEach(m => { (mapelByCfg[m.konfig_id] ||= []).push(m) })
   konfigRows.forEach((c, idx) => {
     const mapels = mapelByCfg[c.id] || []
     const row = [idx + 1, c.tahun_ajaran, c.tingkat, c.semester]
@@ -325,26 +296,17 @@ function buildSheetMuadalahKonfig(XLSX, wb, konfigRows, mapelRows, waktu, namaUs
   })
 
   const wsCfg = XLSX.utils.aoa_to_sheet(cfgAoa)
-  wsCfg['!cols'] = [
-    { wch: 5 }, { wch: 14 }, { wch: 8 }, { wch: 10 },
-    ...Array(30).fill(null).map(() => ({ wch: 20 }))
-  ]
+  wsCfg['!cols'] = [{ wch: 5 }, { wch: 14 }, { wch: 8 }, { wch: 10 }, ...Array(30).fill(null).map(() => ({ wch: 20 }))]
   XLSX.utils.book_append_sheet(wb, wsCfg, 'Konfigurasi')
 }
 
-// ─── Sheet 4–9: MUADALAH per TINGKAT/SEMESTER ───
 function buildSheetMuadalahSemester(XLSX, wb, siswaRows, konfigRows, mapelRows, nilaiMRows, waktu, namaUser) {
   const mapelByCfg = {}
-  mapelRows.forEach(m => {
-    if (!mapelByCfg[m.konfig_id]) mapelByCfg[m.konfig_id] = []
-    mapelByCfg[m.konfig_id].push(m)
-  })
+  mapelRows.forEach(m => { (mapelByCfg[m.konfig_id] ||= []).push(m) })
 
   const nilaiMap = {}
   nilaiMRows.forEach(n => {
-    if (n.nilai !== null && n.nilai !== undefined) {
-      nilaiMap[`${n.no_induk}|${n.mapel_id}`] = Number(n.nilai)
-    }
+    if (n.nilai !== null && n.nilai !== undefined) nilaiMap[`${n.no_induk}|${n.mapel_id}`] = Number(n.nilai)
   })
 
   const configByKey = {}
@@ -359,9 +321,9 @@ function buildSheetMuadalahSemester(XLSX, wb, siswaRows, konfigRows, mapelRows, 
   konfigRows.forEach(c => { cfgRows[c.id] = [] })
 
   const TINGKAT_SMT = [
-    { tingkat: 'X',   smt: 'I'  }, { tingkat: 'X',   smt: 'II' },
-    { tingkat: 'XI',  smt: 'I'  }, { tingkat: 'XI',  smt: 'II' },
-    { tingkat: 'XII', smt: 'I'  }, { tingkat: 'XII', smt: 'II' }
+    { tingkat: 'X', smt: 'I' }, { tingkat: 'X', smt: 'II' },
+    { tingkat: 'XI', smt: 'I' }, { tingkat: 'XI', smt: 'II' },
+    { tingkat: 'XII', smt: 'I' }, { tingkat: 'XII', smt: 'II' }
   ]
 
   filtered.forEach(s => {
@@ -372,7 +334,6 @@ function buildSheetMuadalahSemester(XLSX, wb, siswaRows, konfigRows, mapelRows, 
       const tahunDash = tahunSlash.replace('/', '-')
       const cfg = configByKey[`${tahunDash}|${tingkat}|${smt}`]
       if (!cfg) return
-
       const mapels = mapelByCfg[cfg.id] || []
       const nilaiArr = []
       let sum = 0, count = 0
@@ -384,25 +345,17 @@ function buildSheetMuadalahSemester(XLSX, wb, siswaRows, konfigRows, mapelRows, 
         else nilaiArr.push('')
       }
       cfgRows[cfg.id].push({
-        no_induk: s.no_induk,
-        nama: s.nama,
-        kelas: s.kelas || '',
-        tahun: tahunDash,
-        nilaiArr,
-        jumlah: count > 0 ? sum : null,
-        rata: count > 0 ? sum / count : null,
-        rank: ''
+        no_induk: s.no_induk, nama: s.nama, kelas: s.kelas || '', tahun: tahunDash,
+        nilaiArr, jumlah: count > 0 ? sum : null, rata: count > 0 ? sum / count : null, rank: ''
       })
     })
   })
 
   Object.keys(cfgRows).forEach(cfgId => {
-    const rows = cfgRows[cfgId]
     const byKelas = {}
-    rows.forEach(r => {
+    cfgRows[cfgId].forEach(r => {
       const k = r.kelas || '(tanpa kelas)'
-      if (!byKelas[k]) byKelas[k] = []
-      byKelas[k].push(r)
+      ;(byKelas[k] ||= []).push(r)
     })
     Object.values(byKelas).forEach(arr => {
       arr.sort((a, b) => {
@@ -421,31 +374,29 @@ function buildSheetMuadalahSemester(XLSX, wb, siswaRows, konfigRows, mapelRows, 
   })
 
   const SEM_SHEETS = [
-    { name: 'X I',   tingkat: 'X',   semester: 'I'  },
-    { name: 'X II',  tingkat: 'X',   semester: 'II' },
-    { name: 'XI I',  tingkat: 'XI',  semester: 'I'  },
-    { name: 'XI II', tingkat: 'XI',  semester: 'II' },
-    { name: 'XII I', tingkat: 'XII', semester: 'I'  },
+    { name: 'X I', tingkat: 'X', semester: 'I' },
+    { name: 'X II', tingkat: 'X', semester: 'II' },
+    { name: 'XI I', tingkat: 'XI', semester: 'I' },
+    { name: 'XI II', tingkat: 'XI', semester: 'II' },
+    { name: 'XII I', tingkat: 'XII', semester: 'I' },
     { name: 'XII II', tingkat: 'XII', semester: 'II' }
   ]
 
   SEM_SHEETS.forEach(ss => {
     const cfgList = konfigRows.filter(c => c.tingkat === ss.tingkat && c.semester === ss.semester)
-
-    const aoa = []
-    aoa.push(['Waktu Pengunduhan:', waktu])
-    aoa.push(['Nama Pengunduh:', namaUser])
-    aoa.push(['Kelas:', ss.tingkat, '', 'Semester:', ss.semester])
-    aoa.push([])
-
+    const aoa = [
+      ['Waktu Pengunduhan:', waktu],
+      ['Nama Pengunduh:', namaUser],
+      ['Kelas:', ss.tingkat, '', 'Semester:', ss.semester],
+      []
+    ]
     const header = ['NO INDUK', 'NAMA', 'KELAS', 'TAHUN PELAJARAN']
     for (let i = 1; i <= 30; i++) header.push('N ' + i)
     header.push('JUMLAH', 'RATA-RATA', 'RANKING')
     aoa.push(header)
 
     const allRows = []
-    cfgList.forEach(c => { (cfgRows[c.id] || []).forEach(r => allRows.push(r)) })
-
+    cfgList.forEach(c => (cfgRows[c.id] || []).forEach(r => allRows.push(r)))
     allRows.sort((a, b) => {
       if (a.tahun !== b.tahun) return a.tahun.localeCompare(b.tahun)
       if (a.kelas !== b.kelas) return a.kelas.localeCompare(b.kelas)
@@ -478,48 +429,32 @@ function buildSheetMuadalahSemester(XLSX, wb, siswaRows, konfigRows, mapelRows, 
   })
 }
 
-// ─── Sheet 10: DATA GURU (persis exportDo GuruView) ───
 function buildSheetGuru(XLSX, wb, guruRows, waktu, namaUser) {
   const EXPORT_COLUMNS = [
-    { key: 'kg', label: 'KG' },
-    { key: 'nama', label: 'Nama' },
-    { key: 'alamat', label: 'Alamat' },
-    { key: 'hp', label: 'No HP' },
-    { key: 'mapel_smt1', label: 'Mapel Smt I' },
-    { key: 'kelas_smt1', label: 'Kelas Smt I' },
-    { key: 'hari_smt1', label: 'Hari Smt I' },
-    { key: 'jam_smt1', label: 'Jam Smt I' },
-    { key: 'mapel_smt2', label: 'Mapel Smt II' },
-    { key: 'kelas_smt2', label: 'Kelas Smt II' },
-    { key: 'hari_smt2', label: 'Hari Smt II' },
+    { key: 'kg', label: 'KG' }, { key: 'nama', label: 'Nama' }, { key: 'alamat', label: 'Alamat' },
+    { key: 'hp', label: 'No HP' }, { key: 'mapel_smt1', label: 'Mapel Smt I' },
+    { key: 'kelas_smt1', label: 'Kelas Smt I' }, { key: 'hari_smt1', label: 'Hari Smt I' },
+    { key: 'jam_smt1', label: 'Jam Smt I' }, { key: 'mapel_smt2', label: 'Mapel Smt II' },
+    { key: 'kelas_smt2', label: 'Kelas Smt II' }, { key: 'hari_smt2', label: 'Hari Smt II' },
     { key: 'jam_smt2', label: 'Jam Smt II' }
   ]
-
   const filtered = guruRows.filter(g => g.kg && String(g.kg).trim())
-
-  const aoa = []
-  aoa.push(['Waktu Pengunduhan:', waktu])
-  aoa.push(['Nama Pengunduh:', namaUser])
-  aoa.push(['Filter Pengunduhan:', 'Semua Data'])
-  aoa.push(['Total Guru:', filtered.length])
-  aoa.push([])
-  aoa.push(EXPORT_COLUMNS.map(c => c.label))
-
-  filtered.forEach(g => {
-    aoa.push(EXPORT_COLUMNS.map(c => g[c.key] || ''))
-  })
-
+  const aoa = [
+    ['Waktu Pengunduhan:', waktu],
+    ['Nama Pengunduh:', namaUser],
+    ['Filter Pengunduhan:', 'Semua Data'],
+    ['Total Guru:', filtered.length],
+    [],
+    EXPORT_COLUMNS.map(c => c.label),
+    ...filtered.map(g => EXPORT_COLUMNS.map(c => g[c.key] || ''))
+  ]
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   ws['!cols'] = EXPORT_COLUMNS.map(c => ({ wch: Math.max(12, Math.min(28, c.label.length + 4)) }))
-  ws['!autofilter'] = {
-    ref: XLSX.utils.encode_range({ s: { r: 5, c: 0 }, e: { r: 5 + filtered.length, c: EXPORT_COLUMNS.length - 1 } })
-  }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 5, c: 0 }, e: { r: 5 + filtered.length, c: EXPORT_COLUMNS.length - 1 } }) }
   XLSX.utils.book_append_sheet(wb, ws, 'Data Guru')
 }
 
-// ═══════════════════════════════════════════
-// INFO & MAINTENANCE
-// ═══════════════════════════════════════════
+// ═══════════════ INFO & MAINTENANCE ═══════════════
 const connStatus = ref('idle')
 const connMessage = ref('')
 
@@ -544,8 +479,7 @@ function calcStorage() {
     let total = 0
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i)
-      const v = localStorage.getItem(k) || ''
-      total += (k.length + v.length) * 2
+      total += (k.length + (localStorage.getItem(k) || '').length) * 2
     }
     storageUsage.value = (total / 1024).toFixed(1) + ' KB'
   } catch { storageUsage.value = '—' }
@@ -582,218 +516,312 @@ const browserInfo = computed(() => {
   if (ua.includes('Safari/')) return 'Safari'
   return 'Browser'
 })
+const connLabel = computed(() =>
+  connStatus.value === 'ok' ? 'Terhubung' :
+  connStatus.value === 'error' ? 'Gagal' :
+  connStatus.value === 'loading' ? 'Mengecek...' : 'Belum dicek'
+)
 
-onMounted(() => {
-  calcStorage()
-  testConnection()
-})
+onMounted(() => { calcStorage(); testConnection() })
 
-// ═══════════════════════════════════════════
-// PANDUAN
-// ═══════════════════════════════════════════
+// ═══════════════ PANDUAN ═══════════════
 const shortcuts = [
   { keys: ['Esc'], desc: 'Tutup modal / dialog yang terbuka' },
   { keys: ['Enter'], desc: 'Konfirmasi dialog (jika bukan tombol aktif)' },
   { keys: ['↑', '↓'], desc: 'Navigasi dropdown / select option' },
   { keys: ['⌘', 'K'], desc: 'Buka pencarian cepat (header)' }
 ]
-
 const workflows = [
-  { title: 'Tambah Siswa Baru', steps: 'Data Induk Siswa → SPMB → isi biodata → Simpan' },
-  { title: 'Input Nilai', steps: 'Nilai Akademik → pilih siswa → isi teori & praktek per mapel → Simpan' },
-  { title: 'Kelola Nabil / Sorogan', steps: 'Absensi Nabil / Sorogan → Tambah → pilih grup → centang siswa → Simpan' },
-  { title: 'Cetak Dokumen', steps: 'Pusat Cetak → pilih siswa → pilih jenis dokumen → Cetak' }
+  { no: '01', title: 'Tambah Siswa Baru', steps: 'Data Induk Siswa → SPMB → isi biodata → Simpan' },
+  { no: '02', title: 'Input Nilai', steps: 'Nilai Akademik → pilih siswa → isi teori & praktek per mapel → Simpan' },
+  { no: '03', title: 'Kelola Nabil / Sorogan', steps: 'Absensi Nabil / Sorogan → Tambah → pilih grup → centang siswa → Simpan' },
+  { no: '04', title: 'Cetak Dokumen', steps: 'Pusat Cetak → pilih siswa → pilih jenis dokumen → Cetak' }
 ]
 </script>
 
 <template>
-  <div class="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto space-y-5">
+  <div class="p-3 sm:p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto space-y-4 md:space-y-5">
 
     <!-- HEADER -->
-    <div class="flex items-center justify-between gap-3 flex-wrap">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center shadow-lg shadow-slate-900/40">
-          <Database class="w-6 h-6 text-white" />
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 p-5 sm:p-6 shadow-sm dark:shadow-none">
+      <div class="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none"></div>
+      <div class="relative flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+            <Settings class="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div class="min-w-0">
+            <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/80">Pengaturan</div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Toolkit Sistem</h1>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">Backup, export, dan perawatan aplikasi</p>
+          </div>
         </div>
-        <div>
-          <h1 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Toolkit</h1>
-          <p class="text-sm text-slate-500 mt-1">Backup, export, dan utility sistem</p>
-        </div>
+        <Transition name="fade">
+          <div v-if="toast"
+               class="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
+            <CheckCircle2 class="w-3.5 h-3.5" /> {{ toast }}
+          </div>
+        </Transition>
       </div>
-      <Transition name="fade">
-        <div v-if="toast"
-             class="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-          <CheckCircle2 class="w-3.5 h-3.5" /> {{ toast }}
-        </div>
-      </Transition>
     </div>
 
-    <!-- TABS -->
-    <div class="flex gap-1 overflow-x-auto p-1 bg-slate-900/50 border border-slate-800 rounded-2xl">
-      <button v-for="t in tabs" :key="t.id" @click="activeTab = t.id"
-              :class="[
-                'flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold whitespace-nowrap transition border',
-                activeTab === t.id
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border-transparent'
-              ]">
-        <component :is="t.icon" class="w-4 h-4" />
-        {{ t.label }}
-      </button>
-    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 md:gap-5">
 
-    <!-- CONTENT -->
-    <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 md:p-6">
-
-      <!-- ═══ TAB: INFO & MAINTENANCE ═══ -->
-      
-      <div v-if="activeTab === 'info'" class="space-y-5">
-        <div>
-          <h2 class="text-base font-bold text-white mb-1">Info & Maintenance</h2>
-          <p class="text-xs text-slate-500">Status sistem, koneksi, dan utilitas pembersihan</p>
-        </div>
-
-        <button @click="exportAllExcel" :disabled="exportLoading"
-          class="group p-5 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-600/10 hover:from-blue-500/25 hover:to-blue-600/20 border border-blue-500/30 text-left transition disabled:opacity-50">
-          <div class="flex items-center justify-between mb-2">
-            <FileSpreadsheet class="w-6 h-6 text-blue-400" />
-            <Loader2 v-if="exportLoading" class="w-4 h-4 text-blue-400 animate-spin" />
-          </div>
-          <div class="text-[14px] font-bold text-white">Export Excel Profesional</div>
-          <div class="text-[11.5px] text-blue-200/70 mt-1 leading-relaxed">
-            10 sheet — <b class="text-blue-300">format persis</b> dengan ekspor di menu Siswa, Nilai, Muadalah, dan Guru.
-          </div>
-        </button>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-            <div class="flex items-center gap-2 mb-2">
-              <Server class="w-4 h-4 text-emerald-400" />
-              <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Aplikasi</div>
-            </div>
-            <div class="text-sm font-bold text-white">SIMAK v2.0.0</div>
-            <div class="text-[11px] text-slate-500 mt-0.5">Vue 3 · Vite · Tailwind</div>
-          </div>
-
-          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-            <div class="flex items-center gap-2 mb-2">
-              <User class="w-4 h-4 text-blue-400" />
-              <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">User Aktif</div>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[11px] font-bold">
-                {{ userInitial }}
-              </div>
-              <div class="text-sm font-semibold text-white truncate">{{ userEmail }}</div>
-            </div>
-          </div>
-
-          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-            <div class="flex items-center gap-2 mb-2">
-              <HardDrive class="w-4 h-4 text-purple-400" />
-              <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Storage Browser</div>
-            </div>
-            <div class="text-sm font-bold text-white tabular-nums">{{ storageUsage }}</div>
-            <div class="text-[11px] text-slate-500 mt-0.5">{{ browserInfo }} · localStorage</div>
-          </div>
-
-          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-            <div class="flex items-center gap-2 mb-2">
-              <Wifi class="w-4 h-4 text-amber-400" />
-              <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Koneksi Supabase</div>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <Loader2 v-if="connStatus === 'loading'" class="w-4 h-4 text-slate-400 animate-spin" />
-                <CircleDot v-else-if="connStatus === 'ok'" class="w-4 h-4 text-emerald-400" />
-                <WifiOff v-else-if="connStatus === 'error'" class="w-4 h-4 text-red-400" />
-                <CircleDot v-else class="w-4 h-4 text-slate-500" />
-                <div :class="[
-                  'text-sm font-bold',
-                  connStatus === 'ok' ? 'text-emerald-400' :
-                  connStatus === 'error' ? 'text-red-400' : 'text-slate-300'
+      <!-- SIDEBAR -->
+      <aside class="lg:sticky lg:top-4 lg:self-start">
+        <nav class="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
+          <button v-for="t in tabs" :key="t.id" @click="activeTab = t.id"
+                  :class="[
+                    'group flex items-center gap-3 px-3.5 py-3 rounded-2xl border text-left transition min-w-[210px] lg:min-w-0',
+                    activeTab === t.id
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 shadow-sm dark:shadow-lg dark:shadow-emerald-900/20'
+                      : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900'
+                  ]">
+            <div :class="[
+                  'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition',
+                  activeTab === t.id
+                    ? 'bg-emerald-500 text-white dark:text-slate-950'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
                 ]">
-                  {{ connStatus === 'ok' ? 'OK' : connStatus === 'error' ? 'Gagal' : connStatus === 'loading' ? '...' : 'Belum dicek' }}
+              <component :is="t.icon" class="w-4 h-4" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div :class="['text-[13px] font-bold truncate',
+                activeTab === t.id ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200']">{{ t.label }}</div>
+              <div class="text-[10.5px] text-slate-500 truncate">{{ t.desc }}</div>
+            </div>
+            <ChevronRight :class="['w-4 h-4 hidden lg:block shrink-0',
+              activeTab === t.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-slate-700']" />
+          </button>
+        </nav>
+
+        <!-- Ringkasan -->
+        <div class="hidden lg:block mt-4 p-4 rounded-2xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 space-y-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Ringkasan</div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 dark:text-slate-400">Versi</span>
+            <span class="font-mono text-slate-800 dark:text-slate-200">v2.0.0</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 dark:text-slate-400">Koneksi</span>
+            <span :class="['font-semibold',
+              connStatus === 'ok' ? 'text-emerald-600 dark:text-emerald-400' :
+              connStatus === 'error' ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400']">{{ connLabel }}</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 dark:text-slate-400">Storage</span>
+            <span class="font-mono text-slate-800 dark:text-slate-200 tabular-nums">{{ storageUsage }}</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- KONTEN -->
+      <main class="min-w-0">
+
+        <!-- ═══ SISTEM & PERAWATAN ═══ -->
+        <div v-if="activeTab === 'info'" class="space-y-4">
+
+          <!-- Tema -->
+          <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-4 sm:p-5 shadow-sm dark:shadow-none">
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-indigo-500/15 border border-amber-200 dark:border-indigo-500/30 flex items-center justify-center shrink-0">
+                  <Sun v-if="theme === 'light'" class="w-5 h-5 text-amber-500" />
+                  <Moon v-else class="w-5 h-5 text-indigo-400" />
+                </div>
+                <div class="min-w-0">
+                  <h2 class="text-sm font-bold text-slate-900 dark:text-white">Tampilan</h2>
+                  <p class="text-[11.5px] text-slate-500 dark:text-slate-400">Mode saat ini: <b class="text-slate-800 dark:text-slate-200">{{ theme === 'dark' ? 'Gelap' : 'Terang' }}</b></p>
                 </div>
               </div>
-              <button @click="testConnection" :disabled="connStatus === 'loading'"
-                      class="h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center justify-center transition disabled:opacity-50">
-                <RefreshCw :class="['w-3.5 h-3.5', connStatus === 'loading' ? 'animate-spin' : '']" />
-              </button>
-            </div>
-            <div class="text-[11px] text-slate-500 mt-1 truncate">{{ connMessage || 'Klik refresh untuk cek' }}</div>
-          </div>
-        </div>
-
-        <div class="pt-4 border-t border-slate-800">
-          <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Maintenance</div>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <button @click="clearCache"
-                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[12.5px] font-semibold transition">
-              <Trash2 class="w-4 h-4" /> Bersihkan Cache Browser
-            </button>
-            <button @click="testConnection"
-                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[12.5px] font-semibold transition">
-              <Zap class="w-4 h-4" /> Cek Ulang Koneksi
-            </button>
-          </div>
-          <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
-            <b class="text-slate-300">Bersihkan Cache</b> menghapus localStorage kecuali <b>pengaturan</b> dan <b>tema</b>.
-            Data di Supabase aman.
-          </p>
-        </div>
-      </div>
-
-      <!-- ═══ TAB: PANDUAN ═══ -->
-      <div v-if="activeTab === 'panduan'" class="space-y-5">
-        <div>
-          <h2 class="text-base font-bold text-white mb-1">Panduan Singkat</h2>
-          <p class="text-xs text-slate-500">Shortcut keyboard & alur kerja umum</p>
-        </div>
-
-        <div>
-          <div class="flex items-center gap-2 mb-2">
-            <Keyboard class="w-4 h-4 text-emerald-400" />
-            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Shortcut</div>
-          </div>
-          <div class="rounded-xl border border-slate-800 divide-y divide-slate-800 overflow-hidden">
-            <div v-for="(s, i) in shortcuts" :key="i"
-                 class="flex items-center justify-between px-4 py-2.5 hover:bg-slate-800/30 transition">
-              <div class="text-[12.5px] text-slate-300">{{ s.desc }}</div>
-              <div class="flex items-center gap-1">
-                <template v-for="(k, ki) in s.keys" :key="ki">
-                  <kbd class="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-[10.5px] font-mono font-semibold text-slate-200 min-w-[24px] text-center">{{ k }}</kbd>
-                  <span v-if="ki < s.keys.length - 1" class="text-slate-600 text-[10px]">+</span>
-                </template>
+              <!-- Segmented toggle -->
+              <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                <button @click="theme !== 'light' && toggleTheme()"
+                        :class="['h-8 px-3.5 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1.5 transition',
+                          theme === 'light' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200']">
+                  <Sun class="w-3.5 h-3.5" /> Terang
+                </button>
+                <button @click="theme !== 'dark' && toggleTheme()"
+                        :class="['h-8 px-3.5 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1.5 transition',
+                          theme === 'dark' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200']">
+                  <Moon class="w-3.5 h-3.5" /> Gelap
+                </button>
               </div>
             </div>
-          </div>
+          </section>
+
+          <!-- Export -->
+          <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-4 sm:p-5 shadow-sm dark:shadow-none">
+            <div class="flex items-start gap-4">
+              <div class="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center shrink-0">
+                <FileSpreadsheet class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white">Export Excel Gabungan</h2>
+                <p class="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                  Satu file berisi <b class="text-blue-700 dark:text-blue-300">10 sheet</b> dengan format identik seperti ekspor di menu Siswa, Nilai, Muadalah, dan Guru.
+                </p>
+                <div class="flex flex-wrap gap-1.5 mt-2.5">
+                  <span v-for="s in ['Data Siswa','Nilai','Konfigurasi','Muadalah ×6','Data Guru']" :key="s"
+                        class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-300">{{ s }}</span>
+                </div>
+              </div>
+            </div>
+            <button @click="exportAllExcel" :disabled="exportLoading"
+                    class="mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-400 text-white dark:text-slate-950 text-[13px] font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">
+              <Loader2 v-if="exportLoading" class="w-4 h-4 animate-spin" />
+              <FileSpreadsheet v-else class="w-4 h-4" />
+              {{ exportLoading ? 'Menyiapkan file...' : 'Export Sekarang' }}
+            </button>
+          </section>
+
+          <!-- Status -->
+          <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 overflow-hidden shadow-sm dark:shadow-none">
+            <div class="px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 flex items-center gap-2">
+              <ShieldCheck class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <h2 class="text-[12px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Status Sistem</h2>
+            </div>
+            <div class="divide-y divide-slate-200 dark:divide-slate-800/70">
+
+              <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5">
+                <div class="flex items-center gap-3 min-w-0">
+                  <Server class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div class="min-w-0">
+                    <div class="text-[13px] text-slate-800 dark:text-slate-200 font-semibold">Aplikasi</div>
+                    <div class="text-[11px] text-slate-500 truncate">Vue 3 · Vite · Tailwind</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs text-slate-700 dark:text-slate-300 shrink-0">SIMAK v2.0.0</span>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5">
+                <div class="flex items-center gap-3 min-w-0">
+                  <User class="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div class="min-w-0">
+                    <div class="text-[13px] text-slate-800 dark:text-slate-200 font-semibold">User Aktif</div>
+                    <div class="text-[11px] text-slate-500 truncate">{{ userEmail }}</div>
+                  </div>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {{ userInitial }}
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5">
+                <div class="flex items-center gap-3 min-w-0">
+                  <HardDrive class="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <div class="min-w-0">
+                    <div class="text-[13px] text-slate-800 dark:text-slate-200 font-semibold">Storage Browser</div>
+                    <div class="text-[11px] text-slate-500 truncate">{{ browserInfo }} · localStorage</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs text-slate-700 dark:text-slate-300 tabular-nums shrink-0">{{ storageUsage }}</span>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5">
+                <div class="flex items-center gap-3 min-w-0">
+                  <Loader2 v-if="connStatus === 'loading'" class="w-4 h-4 text-slate-500 animate-spin shrink-0" />
+                  <Wifi v-else-if="connStatus === 'ok'" class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <WifiOff v-else-if="connStatus === 'error'" class="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+                  <CircleDot v-else class="w-4 h-4 text-slate-400 shrink-0" />
+                  <div class="min-w-0">
+                    <div class="text-[13px] text-slate-800 dark:text-slate-200 font-semibold">Koneksi Supabase</div>
+                    <div class="text-[11px] text-slate-500 truncate">{{ connMessage || 'Klik refresh untuk cek' }}</div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span :class="['px-2 py-0.5 rounded-md text-[10.5px] font-bold',
+                    connStatus === 'ok' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' :
+                    connStatus === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400' :
+                    'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300']">{{ connLabel }}</span>
+                  <button @click="testConnection" :disabled="connStatus === 'loading'" title="Cek ulang"
+                          class="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition disabled:opacity-50">
+                    <RefreshCw :class="['w-3.5 h-3.5', connStatus === 'loading' ? 'animate-spin' : '']" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Perawatan -->
+          <section class="rounded-2xl border border-amber-300 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/5 p-4 sm:p-5">
+            <div class="flex items-center gap-2 mb-1">
+              <Trash2 class="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <h2 class="text-[12px] font-bold text-amber-800 dark:text-amber-200 uppercase tracking-wider">Perawatan</h2>
+            </div>
+            <p class="text-[11.5px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              Bersihkan cache menghapus localStorage kecuali <b class="text-slate-800 dark:text-slate-200">pengaturan</b> dan <b class="text-slate-800 dark:text-slate-200">tema</b>.
+              Data di Supabase tidak terpengaruh.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-2 mt-3">
+              <button @click="clearCache"
+                      class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/15 dark:hover:bg-amber-500/25 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 text-[12.5px] font-semibold transition">
+                <Trash2 class="w-4 h-4" /> Bersihkan Cache Browser
+              </button>
+              <button @click="testConnection"
+                      class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[12.5px] font-semibold transition">
+                <Zap class="w-4 h-4" /> Cek Ulang Koneksi
+              </button>
+            </div>
+          </section>
         </div>
 
-        <div>
-          <div class="flex items-center gap-2 mb-2">
-            <Zap class="w-4 h-4 text-blue-400" />
-            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Alur Kerja</div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div v-for="(w, i) in workflows" :key="i"
-                 class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-              <div class="text-[12.5px] font-bold text-white mb-1">{{ w.title }}</div>
-              <div class="text-[11.5px] text-slate-400 leading-relaxed">{{ w.steps }}</div>
-            </div>
-          </div>
-        </div>
+        <!-- ═══ PANDUAN ═══ -->
+        <div v-if="activeTab === 'panduan'" class="space-y-4">
 
-        <div class="p-4 rounded-xl bg-blue-500/5 border border-blue-500/30">
-          <div class="flex items-start gap-3">
-            <HelpCircle class="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-            <div class="text-[12px] text-blue-200/90 leading-relaxed">
-              <b class="text-blue-300">Tips:</b> Backup JSON di awal & akhir semester.
-              Excel untuk laporan ke yayasan/dinas. Restore hanya dari file JSON.
+          <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 overflow-hidden shadow-sm dark:shadow-none">
+            <div class="px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 flex items-center gap-2">
+              <Keyboard class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <h2 class="text-[12px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Shortcut Keyboard</h2>
             </div>
-          </div>
+            <div class="divide-y divide-slate-200 dark:divide-slate-800/70">
+              <div v-for="(s, i) in shortcuts" :key="i"
+                   class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                <div class="text-[12.5px] text-slate-700 dark:text-slate-300">{{ s.desc }}</div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <template v-for="(k, ki) in s.keys" :key="ki">
+                    <kbd class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 border-b-2 text-[10.5px] font-mono font-semibold text-slate-700 dark:text-slate-200 min-w-[24px] text-center">{{ k }}</kbd>
+                    <span v-if="ki < s.keys.length - 1" class="text-slate-400 dark:text-slate-600 text-[10px]">+</span>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div class="flex items-center gap-2 mb-2 px-1">
+              <Zap class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <h2 class="text-[12px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Alur Kerja Umum</h2>
+            </div>
+            <ol class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <li v-for="w in workflows" :key="w.no"
+                  class="p-4 rounded-2xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm dark:shadow-none transition">
+                <div class="flex items-start gap-3">
+                  <div class="text-[22px] font-black text-slate-200 dark:text-slate-700 leading-none tabular-nums">{{ w.no }}</div>
+                  <div class="min-w-0">
+                    <div class="text-[13px] font-bold text-slate-900 dark:text-white mb-1">{{ w.title }}</div>
+                    <div class="text-[11.5px] text-slate-500 dark:text-slate-400 leading-relaxed">{{ w.steps }}</div>
+                  </div>
+                </div>
+              </li>
+            </ol>
+          </section>
+
+          <section class="rounded-2xl border border-blue-200 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/5 p-4 sm:p-5">
+            <div class="flex items-start gap-3">
+              <Lightbulb class="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div class="text-[12px] text-slate-700 dark:text-blue-100/90 leading-relaxed">
+                <div class="font-bold text-blue-700 dark:text-blue-300 mb-1">Tips</div>
+                <ul class="space-y-1 list-disc list-inside marker:text-blue-500">
+                  <li>Backup JSON di awal & akhir semester.</li>
+                  <li>Gunakan Excel untuk laporan ke yayasan/dinas.</li>
+                  <li>Restore hanya dari file JSON.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   </div>
 </template>
