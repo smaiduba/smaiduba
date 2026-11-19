@@ -21,7 +21,7 @@ const panelRef = ref(null)
 const searchInputRef = ref(null)
 const listRef = ref(null)
 const highlightedIndex = ref(-1)
-const panelStyle = ref({ top: '0px', left: '0px', width: '0px', maxHeight: '320px' })
+const panelStyle = ref({ top: '0px', bottom: 'auto', left: '0px', width: '0px', maxHeight: '320px' })
 
 const isGrouped = computed(() => props.options.length > 0 && props.options[0].options !== undefined)
 const flatOptions = computed(() =>
@@ -55,39 +55,46 @@ function computePosition() {
   const viewportH = window.visualViewport?.height || window.innerHeight
   const viewportW = window.visualViewport?.width || window.innerWidth
   const desired = 320
-  const minBelow = 150   // minimal ruang di bawah agar tidak flip
+  const minBelow = 150
 
   const spaceBelow = viewportH - rect.bottom - 8
   const spaceAbove = rect.top - 8
 
-  // Flip ke atas HANYA kalau benar-benar sempit di bawah DAN atas jauh lebih lega
   const openUp = spaceBelow < minBelow && spaceAbove > spaceBelow * 1.5
 
-  let top, maxHeight
+  // Clamp horizontal (sama untuk kedua arah)
+  const left = Math.max(8, Math.min(rect.left, viewportW - rect.width - 8))
+
   if (openUp) {
-    maxHeight = Math.min(desired, spaceAbove)
-    top = rect.top - maxHeight - 4
+    // ── FLIP UP: anchor dari BAWAH agar panel selalu menempel ke atas tombol,
+    //    tanpa peduli tinggi isi panel.
+    const maxHeight = Math.min(desired, spaceAbove)
+    panelStyle.value = {
+      position: 'fixed',
+      left: left + 'px',
+      top: 'auto',
+      bottom: (viewportH - rect.top + 4) + 'px',   // ← 4px gap konsisten
+      width: rect.width + 'px',
+      maxHeight: maxHeight + 'px',
+      zIndex: 9999
+    }
   } else {
-    maxHeight = Math.min(desired, Math.max(spaceBelow, 120))
-    top = rect.bottom + 4
-    // Clamp agar tidak keluar viewport bawah
+    // ── FLIP DOWN: anchor dari ATAS (sudah benar)
+    let top = rect.bottom + 4
+    let maxHeight = Math.min(desired, Math.max(spaceBelow, 120))
     if (top + maxHeight > viewportH - 8) {
       maxHeight = Math.max(viewportH - 8 - top, 120)
     }
-  }
-  // Clamp agar tidak keluar viewport atas
-  top = Math.max(8, top)
-
-  // Clamp horizontal agar tidak keluar kanan
-  const left = Math.max(8, Math.min(rect.left, viewportW - rect.width - 8))
-
-  panelStyle.value = {
-    position: 'fixed',
-    left: left + 'px',
-    top: top + 'px',
-    width: rect.width + 'px',
-    maxHeight: maxHeight + 'px',
-    zIndex: 9999
+    top = Math.max(8, top)
+    panelStyle.value = {
+      position: 'fixed',
+      left: left + 'px',
+      top: top + 'px',
+      bottom: 'auto',
+      width: rect.width + 'px',
+      maxHeight: maxHeight + 'px',
+      zIndex: 9999
+    }
   }
 }
 
