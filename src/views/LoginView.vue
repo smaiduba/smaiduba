@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 
@@ -10,725 +10,491 @@ const pesanError = ref('')
 const isLoading = ref(false)
 const showPassword = ref(false)
 const rememberMe = ref(false)
-const focused = ref('')
-
-const emailFilled = computed(() => email.value.length > 0)
-const passFilled = computed(() => password.value.length > 0)
-
-onMounted(() => {
-  const saved = localStorage.getItem('simak_remember_email')
-  if (saved) {
-    email.value = saved
-    rememberMe.value = true
-  }
-})
 
 const handleLogin = async () => {
-  if (isLoading.value) return
   isLoading.value = true
   pesanError.value = ''
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email: email.value.trim(),
+  
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.value,
     password: password.value,
   })
 
   if (error) {
     pesanError.value = error.message
     isLoading.value = false
-    return
-  }
-
-  if (rememberMe.value) {
-    localStorage.setItem('simak_remember_email', email.value.trim())
   } else {
-    localStorage.removeItem('simak_remember_email')
+    if (rememberMe.value) {
+      localStorage.setItem('simak_remember_email', email.value)
+    } else {
+      localStorage.removeItem('simak_remember_email')
+    }
+    router.push('/')
   }
-  router.push('/')
+}
+
+const savedEmail = localStorage.getItem('simak_remember_email')
+if (savedEmail) {
+  email.value = savedEmail
+  rememberMe.value = true
 }
 </script>
 
 <template>
-  <div class="lg-root">
-    <!-- ========== PANEL KIRI: BRAND ========== -->
-    <aside class="lg-hero" aria-hidden="true">
-      <div class="lg-hero-photo"></div>
-      <div class="lg-hero-tint"></div>
-      <div class="lg-grid"></div>
-
-      <div class="lg-hero-content">
-        <div class="lg-hero-logo">
-          <img
-            src="https://res.cloudinary.com/dqzhp3lnq/image/upload/v1781580065/Copy_of_SMA_Itsbatiyah_fnnhdy.png"
-            alt=""
-          />
-        </div>
-
-        <div class="lg-hero-text">
-          <p class="lg-kicker">Lembaga Pendidikan Islam</p>
-          <h2 class="lg-hero-title">
-            Database<br />
-            <span>SMAI</span>
-          </h2>
-          <p class="lg-hero-desc">
-            Sistem informasi akademik terpadu untuk LPI Darul Ulum PP Banyuanyar.
-          </p>
-        </div>
-
-        <div class="lg-hero-foot">
-          <span class="lg-dot"></span>
-          <span>Sistem aktif</span>
-          <span class="lg-sep">/</span>
-          <span>2026</span>
-        </div>
-      </div>
-    </aside>
-
-    <!-- ========== PANEL KANAN: FORM ========== -->
-    <main class="lg-panel">
-      <div class="lg-glow" aria-hidden="true"></div>
-
-      <div class="lg-wrap">
-        <!-- Brand mobile -->
-        <div class="lg-mobile-brand">
-          <img
-            src="https://res.cloudinary.com/dqzhp3lnq/image/upload/v1781580065/Copy_of_SMA_Itsbatiyah_fnnhdy.png"
-            alt="Logo SMAI"
-          />
-          <div>
-            <p class="lg-mb-title">Database <span>SMAI</span></p>
-            <p class="lg-mb-sub">LPI Darul Ulum PP Banyuanyar</p>
+  <div class="login-page-wrapper">
+    <!-- Main Shell dengan Background Image -->
+    <main class="page-shell">
+      <section class="login-card" aria-label="Formulir masuk Database SMAI">
+        
+        <!-- Brand Header -->
+        <header class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <img src="https://res.cloudinary.com/dqzhp3lnq/image/upload/v1781580065/Copy_of_SMA_Itsbatiyah_fnnhdy.png" alt="Logo SMAI" style="width: 100%; height: 100%; object-fit: contain; padding: 4px;" />
           </div>
-        </div>
-
-        <header class="lg-head" style="--d: 1">
-          <p class="lg-eyebrow">Portal Akademik</p>
-          <h1>Masuk ke akun Anda</h1>
-          <p class="lg-sub">Gunakan username dan password yang terdaftar.</p>
+          <div class="brand-copy">
+            <strong>DATABASE <span>SMAI</span></strong>
+            <small>LPI DARUL ULUM PP BANYUANYAR</small>
+          </div>
         </header>
 
-        <transition name="lg-err">
-          <div v-if="pesanError" class="lg-error" role="alert">
-            <span class="lg-error-icon">!</span>
-            <span>{{ pesanError }}</span>
-          </div>
-        </transition>
+        <!-- Intro Text -->
+        <div class="intro">
+          <p class="eyebrow">PORTAL AKADEMIK</p>
+          <h1>Selamat datang.</h1>
+          <p class="intro-text">Masuk untuk melanjutkan ke sistem informasi sekolah.</p>
+        </div>
 
-        <form class="lg-form" @submit.prevent="handleLogin" novalidate>
-          <!-- Email -->
-          <div
-            class="lg-field"
-            :class="{ 'is-focus': focused === 'email', 'is-filled': emailFilled }"
-            style="--d: 2"
-          >
-            <input
-              id="username"
-              v-model="email"
-              type="email"
-              autocomplete="username"
-              required
-              placeholder=" "
-              @focus="focused = 'email'"
-              @blur="focused = ''"
-            />
+        <!-- Form -->
+        <form id="loginForm" @submit.prevent="handleLogin" novalidate>
+          
+          <!-- Error Message -->
+          <div v-if="pesanError" class="toast-error">
+            {{ pesanError }}
+          </div>
+
+          <!-- Username Field -->
+          <div class="field-group">
             <label for="username">Username</label>
-            <span class="lg-line"></span>
+            <div class="input-wrap">
+              <input 
+                v-model="email" 
+                id="username" 
+                name="username" 
+                type="email" 
+                placeholder="Masukkan username" 
+                autocomplete="username" 
+                required 
+              />
+            </div>
           </div>
 
-          <!-- Password -->
-          <div
-            class="lg-field"
-            :class="{ 'is-focus': focused === 'pass', 'is-filled': passFilled }"
-            style="--d: 3"
-          >
-            <input
-              id="password"
-              v-model="password"
-              :type="showPassword ? 'text' : 'password'"
-              autocomplete="current-password"
-              required
-              placeholder=" "
-              @focus="focused = 'pass'"
-              @blur="focused = ''"
-            />
+          <!-- Password Field -->
+          <div class="field-group">
             <label for="password">Password</label>
-            <button
-              type="button"
-              class="lg-eye"
-              :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
-              @click="showPassword = !showPassword"
-            >
-              <svg v-if="!showPassword" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M1.8 10s3-5.5 8.2-5.5S18.2 10 18.2 10s-3 5.5-8.2 5.5S1.8 10 1.8 10Z" />
-                <circle cx="10" cy="10" r="2.5" />
-              </svg>
-              <svg v-else viewBox="0 0 20 20" aria-hidden="true">
-                <path d="m3 3 14 14M8.4 5.6A8.6 8.6 0 0 1 10 5.5c5.2 0 8.2 4.5 8.2 4.5a13 13 0 0 1-2.2 2.6M5.6 6.4C3.7 7.7 1.8 10 1.8 10s3 4.5 8.2 4.5c1.4 0 2.6-.4 3.7-1" />
-              </svg>
-            </button>
-            <span class="lg-line"></span>
+            <div class="input-wrap password-wrap">
+              <input 
+                v-model="password" 
+                id="password" 
+                name="password" 
+                :type="showPassword ? 'text' : 'password'" 
+                placeholder="Masukkan password" 
+                autocomplete="current-password" 
+                required 
+              />
+              <button 
+                class="password-toggle" 
+                id="togglePassword" 
+                type="button" 
+                @click="showPassword = !showPassword" 
+                aria-label="Tampilkan password" 
+                :aria-pressed="showPassword"
+              >
+                <svg v-if="!showPassword" class="eye-open" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2.8 12s3.2-6 9.2-6 9.2 6 9.2 6-3.2 6-9.2 6-9.2-6-9.2-6Z"/>
+                  <circle cx="12" cy="12" r="2.7"/>
+                </svg>
+                <svg v-else class="eye-closed" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m3 3 18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6 0 9.2 6 9.2 6a15 15 0 0 1-3 3.6M6.2 6.3C4 7.7 2.8 12 2.8 12s3.2 6 9.2 6c1.2 0 2.3-.2 3.3-.6"/>
+                  <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <div class="lg-row" style="--d: 4">
-            <label class="lg-check">
-              <input v-model="rememberMe" type="checkbox" />
-              <span class="lg-box">
-                <svg viewBox="0 0 12 12"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg>
+          <!-- Options -->
+          <div class="form-options">
+            <label class="remember-option">
+              <input v-model="rememberMe" id="remember" type="checkbox" />
+              <span class="custom-check" aria-hidden="true">
+                <svg viewBox="0 0 12 12"><path d="m2 6 2.5 2.5L10 3"/></svg>
               </span>
               <span>Ingat saya</span>
             </label>
-            <a href="#bantuan" class="lg-link">Lupa password?</a>
+            <a class="forgot-link" href="#bantuan" id="forgotLink">Lupa password?</a>
           </div>
 
-          <button type="submit" class="lg-submit" :disabled="isLoading" style="--d: 5">
-            <span class="lg-shine" aria-hidden="true"></span>
-            <span v-if="isLoading" class="lg-spin" aria-hidden="true"></span>
-            <span class="lg-submit-text">{{ isLoading ? 'Memverifikasi...' : 'Masuk' }}</span>
-            <svg v-if="!isLoading" viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M4 10h11M11 5.5 15.5 10 11 14.5" />
+          <!-- Submit Button -->
+          <button class="submit-button" type="submit" :disabled="isLoading">
+            <span>{{ isLoading ? 'Memproses...' : 'Masuk' }}</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3.5 10h12M10 4.5 15.5 10 10 15.5"/>
             </svg>
           </button>
         </form>
 
-        <p class="lg-note" style="--d: 6">
-          <span class="lg-dot"></span>
+        <!-- Card Footer -->
+        <footer class="card-footer">
+          <span class="footer-dot" aria-hidden="true"></span>
           Akses khusus pengguna terdaftar
-        </p>
+        </footer>
+      </section>
 
-        <p class="lg-copy">© 2026 Database SMAI · LPI Darul Ulum PP Banyuanyar</p>
-      </div>
+      <!-- Page Footer (Copyright) -->
+      <footer class="page-footer">
+        © 2026 DATABASE SMAI <span aria-hidden="true">·</span> LPI DARUL ULUM PP BANYUANYAR
+      </footer>
     </main>
   </div>
 </template>
 
 <style scoped>
-/* ================= ROOT ================= */
-.lg-root {
+/* 
+  IMPORT FONT SESUAI HTML
+*/
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+
+/* 
+  RESET & LAYOUT DASAR (Menggunakan background image yang Anda minta)
+*/
+.login-page-wrapper {
+  color-scheme: light !important;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background-image: url('https://res.cloudinary.com/dqzhp3lnq/image/upload/v1794978872/IMG20261118121122_bfjmd2.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  width: 100%;
   position: fixed;
   inset: 0;
   z-index: 50;
-  display: grid;
-  grid-template-columns: 1fr;
-  background: #020617;
-  color: #f1f5f9;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color-scheme: dark;
-  overflow: hidden;
-}
-@media (min-width: 1024px) {
-  .lg-root { grid-template-columns: 1.05fr 1fr; }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
-/* ================= HERO (kiri) ================= */
-.lg-hero {
-  display: none;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-@media (min-width: 1024px) { .lg-hero { display: block; } }
-
-.lg-hero-photo {
-  position: absolute;
-  inset: -2%;
-  background: url('https://res.cloudinary.com/dqzhp3lnq/image/upload/v1794978872/IMG20261118121122_bfjmd2.jpg') center / cover no-repeat;
-  animation: kenburns 24s ease-in-out infinite alternate;
-  z-index: -3;
-}
-@keyframes kenburns {
-  from { transform: scale(1.02); }
-  to   { transform: scale(1.1); }
-}
-
-.lg-hero-tint {
+/* Overlay gelap tipis di belakang kartu agar kartu putih menonjol */
+.login-page-wrapper::before {
+  content: '';
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(160deg, rgba(2, 6, 23, 0.35) 0%, rgba(2, 6, 23, 0.9) 75%),
-    radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.35), transparent 55%);
-  z-index: -2;
-}
-
-.lg-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  background: rgba(15, 23, 42, 0.4); /* Slate-900 dengan opacity 40% */
   z-index: -1;
 }
 
-.lg-hero-content {
-  position: relative;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 56px 64px;
-}
-
-.lg-hero-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 6px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-.lg-hero-logo img {
+.page-shell {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.lg-kicker {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: #6ee7b7;
-  margin-bottom: 18px;
-}
-
-.lg-hero-title {
-  font-size: clamp(56px, 7vw, 96px);
-  font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -0.04em;
-  color: #ffffff;
-}
-.lg-hero-title span {
-  background: linear-gradient(120deg, #34d399, #a7f3d0 60%, #ffffff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.lg-hero-desc {
-  margin-top: 24px;
   max-width: 420px;
-  font-size: 16px;
-  line-height: 1.65;
-  color: rgba(226, 232, 240, 0.78);
-}
-
-.lg-hero-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: rgba(226, 232, 240, 0.7);
-}
-.lg-sep { opacity: 0.4; }
-
-.lg-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  50% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
-}
-
-/* ================= PANEL (kanan) ================= */
-.lg-panel {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 24px;
-  overflow-y: auto;
-  background:
-    radial-gradient(ellipse at top right, rgba(16, 185, 129, 0.08), transparent 60%),
-    #020617;
-}
-
-.lg-glow {
-  position: absolute;
-  top: -120px;
-  right: -120px;
-  width: 360px;
-  height: 360px;
-  border-radius: 50%;
-  background: rgba(16, 185, 129, 0.12);
-  filter: blur(90px);
-  pointer-events: none;
-}
-
-.lg-wrap {
-  position: relative;
-  width: 100%;
-  max-width: 380px;
   display: flex;
   flex-direction: column;
+  gap: 24px;
 }
 
-/* Brand mobile (hanya tampil di layar kecil) */
-.lg-mobile-brand {
+/* 
+  KARTU LOGIN PUTIH BERSIH (1:1)
+*/
+.login-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Brand / Header */
+.brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 }
-.lg-mobile-brand img {
+.brand-mark {
   width: 40px;
   height: 40px;
-  object-fit: contain;
-  background: #fff;
-  border-radius: 10px;
-  padding: 4px;
-}
-.lg-mb-title {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-}
-.lg-mb-title span { color: #34d399; }
-.lg-mb-sub {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 2px;
-}
-@media (min-width: 1024px) {
-  .lg-mobile-brand { display: none; }
-}
-
-/* ================= HEADER ================= */
-.lg-head { margin-bottom: 36px; animation: up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--d) * 80ms); }
-
-.lg-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #34d399;
-  margin-bottom: 14px;
-}
-.lg-eyebrow::before {
-  content: '';
-  width: 22px;
-  height: 1px;
-  background: #34d399;
-}
-
-.lg-head h1 {
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  background-color: #059669; /* Warna emerald/hijau */
   color: #ffffff;
-}
-
-.lg-sub {
-  margin-top: 8px;
-  font-size: 14px;
-  color: #94a3b8;
-  line-height: 1.6;
-}
-
-@keyframes up {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ================= ERROR ================= */
-.lg-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  margin-bottom: 24px;
-  border-radius: 12px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
-  font-size: 13px;
-  line-height: 1.5;
-}
-.lg-error-icon {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  font-size: 12px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 20px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 10px;
 }
-
-.lg-err-enter-active,
-.lg-err-leave-active { transition: all 0.3s ease; }
-.lg-err-enter-from,
-.lg-err-leave-to { opacity: 0; transform: translateY(-6px); }
-
-/* ================= FORM FIELD (underline) ================= */
-.lg-form {
+.brand-copy {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+}
+.brand-copy strong {
+  font-family: 'Manrope', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+.brand-copy strong span {
+  color: #059669;
+}
+.brand-copy small {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
 }
 
-.lg-field {
+/* Intro */
+.intro {
+  margin-bottom: 32px;
+}
+.eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  color: #059669;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.intro h1 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+.intro-text {
+  font-size: 13.5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* Form & Inputs */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+.input-wrap {
   position: relative;
-  animation: up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--d) * 80ms);
+  display: flex;
+  align-items: center;
 }
-
-.lg-field input {
+.input-wrap input {
   width: 100%;
-  height: 52px;
-  padding: 18px 44px 6px 0;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-  color: #f8fafc;
-  font-size: 15px;
+  height: 44px;
+  padding: 0 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #0f172a;
   outline: none;
-  transition: border-color 0.3s;
+  transition: all 0.2s ease;
 }
-
-.lg-field label {
-  position: absolute;
-  left: 0;
-  top: 16px;
-  font-size: 15px;
-  color: #64748b;
-  pointer-events: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: left center;
-}
-
-/* Label naik saat fokus atau terisi */
-.lg-field.is-focus label,
-.lg-field.is-filled label {
-  top: 2px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #34d399;
-}
-.lg-field.is-filled:not(.is-focus) label { color: #94a3b8; }
-
-/* Garis bawah animasi */
-.lg-line {
-  position: absolute;
-  left: 0;
-  bottom: -1px;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, #10b981, #6ee7b7);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
-}
-.lg-field.is-focus .lg-line { transform: scaleX(1); }
-
-/* Tombol mata */
-.lg-eye {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: color 0.2s, background 0.2s;
-}
-.lg-eye:hover { color: #34d399; background: rgba(16, 185, 129, 0.08); }
-.lg-eye svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* ================= ROW (ingat saya & lupa) ================= */
-.lg-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: -8px;
-  animation: up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--d) * 80ms);
-}
-
-.lg-check {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 13px;
+.input-wrap input::placeholder {
   color: #94a3b8;
 }
-.lg-check input { display: none; }
+.input-wrap input:focus {
+  background: #ffffff;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
 
-.lg-box {
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
-  border: 1.5px solid #334155;
+/* Password Wrap */
+.password-wrap input {
+  padding-right: 40px;
+}
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-}
-.lg-box svg {
-  width: 11px;
-  height: 11px;
-  fill: none;
-  stroke: #022c22;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0;
-  transform: scale(0.5);
-  transition: all 0.2s;
-}
-.lg-check input:checked + .lg-box {
-  background: #10b981;
-  border-color: #10b981;
-}
-.lg-check input:checked + .lg-box svg {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.lg-link {
-  font-size: 13px;
-  font-weight: 500;
-  color: #34d399;
-  text-decoration: none;
+  padding: 0;
   transition: color 0.2s;
 }
-.lg-link:hover { color: #6ee7b7; }
-
-/* ================= SUBMIT ================= */
-.lg-submit {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  height: 54px;
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: none;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  box-shadow: 0 10px 30px -8px rgba(16, 185, 129, 0.55);
-  transition: transform 0.2s, box-shadow 0.3s, opacity 0.2s;
-  animation: up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--d) * 80ms);
+.password-toggle:hover {
+  color: #059669;
 }
-.lg-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 36px -8px rgba(16, 185, 129, 0.7);
-}
-.lg-submit:active:not(:disabled) { transform: translateY(0) scale(0.99); }
-.lg-submit:disabled { opacity: 0.7; cursor: not-allowed; }
-.lg-submit:focus-visible { outline: 3px solid rgba(110, 231, 183, 0.5); outline-offset: 3px; }
-
-.lg-submit svg {
-  width: 18px;
-  height: 18px;
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 0.25s;
-}
-.lg-submit:hover:not(:disabled) svg { transform: translateX(4px); }
-
-/* Efek kilau */
-.lg-shine {
-  position: absolute;
-  top: 0;
-  left: -75%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-  transform: skewX(-20deg);
-  pointer-events: none;
-}
-.lg-submit:hover:not(:disabled) .lg-shine {
-  animation: shine 0.9s ease;
-}
-@keyframes shine {
-  to { left: 130%; }
 }
 
-.lg-spin {
+/* Form Options */
+.form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+.remember-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.remember-option input {
+  display: none;
+}
+.custom-check {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.custom-check svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: none;
+}
+.remember-option input:checked + .custom-check {
+  background: #059669;
+  border-color: #059669;
+}
+.remember-option input:checked + .custom-check svg {
+  display: block;
+}
+.remember-option span:last-child {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+  user-select: none;
+}
+.forgot-link {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #059669;
+  text-decoration: none;
+}
+.forgot-link:hover {
+  text-decoration: underline;
+}
 
-/* ================= FOOTER ================= */
-.lg-note {
+/* Submit Button */
+.submit-button {
+  width: 100%;
+  height: 46px;
+  margin-top: 8px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+}
+.submit-button:hover:not(:disabled) {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.3);
+}
+.submit-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+.submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.submit-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s;
+}
+.submit-button:hover:not(:disabled) svg {
+  transform: translateX(3px);
+}
+
+/* Card Footer */
+.card-footer {
   margin-top: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  font-size: 12px;
-  color: #64748b;
-  animation: up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--d) * 80ms);
-}
-
-.lg-copy {
-  margin-top: 28px;
-  text-align: center;
+  gap: 8px;
   font-size: 11px;
-  color: #475569;
+  font-weight: 600;
+  color: #94a3b8;
+}
+.footer-dot {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
 }
 
-/* ================= RESPONSIVE & A11Y ================= */
-@media (max-width: 480px) {
-  .lg-head h1 { font-size: 26px; }
-  .lg-field input { font-size: 16px; } /* cegah auto-zoom iOS */
+/* Page Footer (Di luar kartu) */
+.page-footer {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation: none !important;
-    transition: none !important;
-  }
+/* Error Toast (Disisipkan untuk Supabase) */
+.toast-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 8px;
 }
 </style>
