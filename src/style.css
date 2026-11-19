@@ -4,6 +4,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -17,12 +24,17 @@
 
 html, body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: #020617;
-  color: #f1f5f9;
+  background: #f8fafc;
+  color: #0f172a;
   font-feature-settings: 'cv02','cv03','cv04','cv11','ss01';
   font-variant-numeric: tabular-nums;
   overscroll-behavior-y: contain;
   min-height: 100vh;
+}
+
+html.dark, html.dark body {
+  background: #020617;
+  color: #f1f5f9;
 }
 
 /* ==== SCROLLBAR ==== */
