@@ -25,6 +25,14 @@ const toggleCollapse = () => { isSidebarCollapsed.value = !isSidebarCollapsed.va
 const isHalamanLogin = computed(() => route.name === 'login')
 const isPrintMode = computed(() => route.meta?.print === true)
 
+// ─── MENU BAWAH (MOBILE APP) ───
+const bottomNavItems = [
+  { path: '/', name: 'Home', icon: LayoutDashboard },
+  { path: '/siswa', name: 'Siswa', icon: Users },
+  { path: '/nilai', name: 'Nilai', icon: Award },
+  { path: '/absen-kelas', name: 'Absen', icon: ClipboardCheck }
+]
+
 const handleLogout = async () => {
   const ok = await confirm({
     title: 'Keluar Aplikasi',
@@ -92,16 +100,18 @@ const breadcrumb = computed(() => {
 <template>
   <RouterView v-if="isHalamanLogin || isPrintMode" />
 
-  <div v-else class="min-h-screen bg-slate-950 flex">
-    <!-- MOBILE OVERLAY -->
+  <!-- h-[100dvh] mencegah layout terpotong oleh address bar browser di HP -->
+  <div v-else class="h-[100dvh] bg-slate-950 flex">
+    
+    <!-- OVERLAY MOBILE -->
     <Transition name="fade">
       <div v-if="isSidebarOpen" @click="isSidebarOpen = false" 
            class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden"></div>
     </Transition>
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR (Menu Lengkap) -->
     <aside 
-      class="bg-slate-950/95 border-r border-slate-800/80 flex flex-col fixed md:sticky top-0 h-screen left-0 z-50 transform transition-all duration-300 ease-out shrink-0"
+      class="bg-slate-950/95 border-r border-slate-800/80 flex flex-col fixed md:sticky top-0 h-[100dvh] left-0 z-50 transform transition-all duration-300 ease-out shrink-0"
       :class="[isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0', isSidebarCollapsed ? 'md:w-[72px]' : 'w-[260px]']">
 
       <!-- Logo -->
@@ -120,7 +130,7 @@ const breadcrumb = computed(() => {
           <img src="https://res.cloudinary.com/dqzhp3lnq/image/upload/v1781580065/Copy_of_SMA_Itsbatiyah_fnnhdy.png" 
                class="w-full h-full object-contain p-1">
         </div>
-        <button @click="toggleSidebar" class="md:hidden text-slate-400 hover:text-white p-1.5 -mr-1.5">
+        <button @click="isSidebarOpen = false" class="md:hidden text-slate-400 hover:text-white p-1.5 -mr-1.5">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -166,7 +176,7 @@ const breadcrumb = computed(() => {
         </button>
       </div>
 
-      <!-- Collapse toggle -->
+      <!-- Collapse toggle (Desktop only) -->
       <button @click="toggleCollapse" 
               class="hidden md:flex absolute top-20 -right-3 w-6 h-6 rounded-full bg-slate-800 border border-slate-700 items-center justify-center text-slate-400 hover:text-white hover:border-emerald-500 transition z-50">
         <Menu class="w-3 h-3" />
@@ -174,25 +184,31 @@ const breadcrumb = computed(() => {
     </aside>
 
     <!-- MAIN CONTENT -->
-    <div class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
+    <div class="flex-1 flex flex-col h-[100dvh] overflow-hidden min-w-0">
       
       <!-- HEADER -->
-      <header class="h-16 bg-slate-950/80 border-b border-slate-800/80 flex items-center justify-between px-4 md:px-6 shrink-0 backdrop-blur-lg z-30">
+      <header class="h-14 md:h-16 bg-slate-950/80 border-b border-slate-800/80 flex items-center justify-between px-4 md:px-6 shrink-0 backdrop-blur-lg z-30">
         <div class="flex items-center gap-3 min-w-0">
-          <button @click="toggleSidebar" class="md:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/60">
-            <Menu class="w-5 h-5" />
-          </button>
           
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="text-[13px] text-slate-500 hidden sm:inline">SIMAK</span>
-            <span class="text-slate-600 hidden sm:inline">/</span>
+          <!-- Mobile Header Title -->
+          <div class="flex items-center gap-2 md:hidden">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 overflow-hidden">
+              <img src="https://res.cloudinary.com/dqzhp3lnq/image/upload/v1781580065/Copy_of_SMA_Itsbatiyah_fnnhdy.png" class="w-full h-full object-contain p-0.5">
+            </div>
+            <span class="text-[15px] font-bold text-white">SIMAK DUBA</span>
+          </div>
+
+          <!-- Desktop Breadcrumb -->
+          <div class="hidden md:flex items-center gap-2 min-w-0">
+            <span class="text-[13px] text-slate-500">SIMAK</span>
+            <span class="text-slate-600">/</span>
             <span class="text-[13px] font-semibold text-white truncate">{{ breadcrumb }}</span>
           </div>
         </div>
 
         <div class="flex items-center gap-1">
-          <!-- Search shortcut -->
-          <button class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs transition mr-1">
+          <!-- Search shortcut (hide on mobile) -->
+          <button class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs transition mr-1">
             <Search class="w-3.5 h-3.5" />
             <span class="hidden lg:inline">Cari...</span>
             <kbd class="hidden lg:inline px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono">⌘K</kbd>
@@ -206,8 +222,8 @@ const breadcrumb = computed(() => {
             <Moon v-else class="w-4 h-4" />
           </button>
 
-          <!-- Notification -->
-          <button class="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition">
+          <!-- Notification (hide on mobile) -->
+          <button class="hidden sm:flex relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition">
             <Bell class="w-4 h-4" />
           </button>
 
@@ -257,7 +273,8 @@ const breadcrumb = computed(() => {
       </header>
 
       <!-- MAIN AREA -->
-      <main class="flex-1 overflow-y-auto bg-slate-950" @click="isUserMenuOpen = false">
+      <!-- pb-[calc(56px+env(safe-area-inset-bottom))] memberi ruang agar konten tidak tertutup menu bawah -->
+      <main class="flex-1 overflow-y-auto bg-slate-950 pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0" @click="isUserMenuOpen = false">
         <RouterView v-slot="{ Component }">
           <Transition name="page" mode="out-in">
             <component :is="Component" />
@@ -265,6 +282,22 @@ const breadcrumb = computed(() => {
         </RouterView>
       </main>
     </div>
+
+    <!-- ─── BOTTOM NAVIGATION (KHUSUS MOBILE) ─── -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/95 border-t border-slate-800 z-50 flex items-center justify-around pb-[env(safe-area-inset-bottom)] backdrop-blur-lg">
+      <RouterLink v-for="item in bottomNavItems" :key="item.path" :to="item.path"
+                  class="flex flex-col items-center justify-center w-full h-[56px] gap-1 transition-colors"
+                  :class="route.path === item.path ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'">
+        <component :is="item.icon" class="w-5 h-5" :class="route.path === item.path ? 'fill-emerald-400/20' : ''" />
+        <span class="text-[10px] font-medium">{{ item.name }}</span>
+      </RouterLink>
+      
+      <!-- Tombol Menu (Buka Sidebar) -->
+      <button @click="isSidebarOpen = true" class="flex flex-col items-center justify-center w-full h-[56px] gap-1 text-slate-500 hover:text-slate-300 transition-colors">
+        <Menu class="w-5 h-5" />
+        <span class="text-[10px] font-medium">Menu</span>
+      </button>
+    </nav>
 
     <ConfirmDialog />
 
