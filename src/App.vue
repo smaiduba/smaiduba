@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { userSesi, logout } from './stores/auth'
 import { theme, toggleTheme } from './stores/theme'
@@ -14,6 +14,12 @@ import { confirm } from './lib/confirm'
 
 const route = useRoute()
 const router = useRouter()
+
+const mainRef = ref(null)
+watch(() => route.path, async () => {
+  await nextTick()
+  if (mainRef.value) mainRef.value.scrollTop = 0
+})
 
 const isSidebarOpen = ref(false)
 const isSidebarCollapsed = ref(false)
@@ -272,7 +278,7 @@ const breadcrumb = computed(() => {
       </header>
 
       <!-- MAIN AREA -->
-      <main class="flex-1 overflow-y-auto bg-slate-950 pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0" @click="isUserMenuOpen = false">
+      <main ref="mainRef" class="flex-1 overflow-y-auto bg-slate-950 pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0" @click="isUserMenuOpen = false">
         <RouterView v-slot="{ Component }">
           <Transition name="page" mode="out-in">
             <component :is="Component" />
@@ -394,6 +400,40 @@ const breadcrumb = computed(() => {
     </Teleport>
   </div>
 </template>
+
+<style>
+/* ═══════════════════════════════════════════════════════════
+   MODAL BOTTOM SHEET (MOBILE)
+   Aktif otomatis untuk semua modal yang memakai class
+   .modal-standard di dalam overlay fixed inset-0.
+   Desktop (>767px) tidak terpengaruh.
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* 1. Overlay → modal menempel ke bawah, hilangkan padding */
+  div.fixed.inset-0:has(> .modal-standard) {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  /* 2. Panel modal → full width, rounded atas saja, bottom sheet style */
+  .modal-standard {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    max-height: 92dvh !important;
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+    border-bottom: none !important;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: modalSheetUp 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes modalSheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+</style>
 
 <style scoped>
 .page-enter-active, .page-leave-active { transition: opacity 180ms ease, transform 180ms ease; }
